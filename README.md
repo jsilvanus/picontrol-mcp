@@ -11,7 +11,7 @@ Tools are grouped by task, not one per REST endpoint; state is in `pi://` resour
 | Group | Tools | Main resources |
 |---|---|---|
 | routing | `routing_set_output_source`, `routing_request_route`, `routing_set_multiview`, `routing_set_lock`, `source_set_framing`, `output_set_crop`, `source_set_blackout_mute`, `rtsp_output_control` | `pi://routing/matrix`, `/outputs[/{id}]`, `/multiview`, `/sources[/{id}]` |
-| cameras | `camera_move`, `camera_zoom`, `camera_preset`, `camera_set_smartframe`, `camera_stream` | `pi://cameras[/{id}]` |
+| cameras | `camera_move`, `camera_zoom`, `camera_preset`, `camera_set_smartframe`, `camera_privacy_blur`, `camera_stream` | `pi://cameras[/{id}]` |
 | atem | `atem_switch` | `pi://atem` |
 | program | `program_control`, `program_set_fade_to_black`, `program_set_audio`, `program_playlist`, `program_create_item`, `program_configure_pipeline`, `slides_canva_control`, `slides_canva_push` | `pi://program/pipelines[/{id}]`, `pi://program/items[/{id}]` |
 | composites | `composite_set_slide`, `composite_control` | `pi://composites[/{id}[/preview]]` |

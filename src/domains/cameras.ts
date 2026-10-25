@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CameraMoveRequest, CameraSmartFrameRequest, CameraZoomRequest } from '../generated/pimatrix/index.js';
+import type { CameraMoveRequest, CameraPrivacyBlurRequest, CameraSmartFrameRequest, CameraZoomRequest } from '../generated/pimatrix/index.js';
 import { allows } from '../users/permissions.js';
 import { defineTool, requireClient, type DomainModule } from '../mcp/registry.js';
 import { cameraId, cast, json } from './util.js';
@@ -70,6 +70,13 @@ export const cameras: DomainModule = {
       permission: write, upstream: 'pimatrix', effect: 'live',
       input: { camera: cameraId, mode: z.enum(['enable', 'disable', 'trigger']) },
       run: async ({ camera, mode }, ctx) => requireClient(ctx, 'pimatrix').cameras.setCameraSmartFrame(cast(camera), cast<CameraSmartFrameRequest>({ mode })),
+    }),
+    defineTool({
+      name: 'camera_privacy_blur', title: 'Camera privacy blur',
+      description: 'Blur the camera picture for privacy: on switches autofocus to manual focus, sets the near limit to the closest distance and drives focus to the nearest point; off returns the camera to autofocus. Uses standard VISCA focus commands, not yet verified on the real cameras.',
+      permission: write, upstream: 'pimatrix', effect: 'live', idempotent: true,
+      input: { camera: cameraId, enabled: z.boolean().describe('true = blur, false = back to autofocus') },
+      run: async ({ camera, enabled }, ctx) => requireClient(ctx, 'pimatrix').cameras.setCameraPrivacyBlur(cast(camera), cast<CameraPrivacyBlurRequest>({ enabled })),
     }),
     defineTool({
       name: 'camera_stream', title: 'Start or stop a camera stream',
