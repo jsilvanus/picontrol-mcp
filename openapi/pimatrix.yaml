@@ -1,0 +1,2765 @@
+openapi: 3.1.0
+info:
+  title: PiMatrix API
+  version: 0.2.0
+  description: PiMatrix and PiPGM unified control-plane API.
+servers:
+  - url: http://127.0.0.1:3000
+    description: Local development default
+tags:
+  - name: System
+  - name: Sources
+  - name: Outputs
+  - name: Cameras
+  - name: PiPGM
+  - name: Effects
+  - name: ATEM
+  - name: Composites
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [System]
+      summary: Process liveness
+      responses:
+        "200":
+          description: Process is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /ready:
+    get:
+      operationId: getReadiness
+      tags: [System]
+      summary: API readiness and dependency checks
+      responses:
+        "200":
+          description: API can accept requests; media integrations may not be configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+  /api/v1/status:
+    get:
+      operationId: getStatus
+      tags: [System]
+      summary: Overall PiMatrix runtime status
+      responses:
+        "200":
+          description: Runtime status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /api/v1/sources:
+    get:
+      operationId: listSources
+      tags: [Sources]
+      summary: List configured logical sources
+      parameters:
+        - in: query
+          name: includeHidden
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Source list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Source"
+  /api/v1/sources/{sourceId}:
+    get:
+      operationId: getSource
+      tags: [Sources]
+      summary: Get one configured source
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      responses:
+        "200":
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/outputs:
+    get:
+      operationId: listOutputs
+      tags: [Outputs]
+      summary: List physical outputs
+      responses:
+        "200":
+          description: Output list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Output"
+  /api/v1/outputs/{outputId}/source:
+    put:
+      operationId: setOutputSource
+      tags: [Outputs]
+      summary: Set the desired logical source for an HDMI output
+      description: Records route intent. Observed state remains unavailable until the HDMI display adapter is implemented.
+      parameters:
+        - in: path
+          name: outputId
+          required: true
+          schema:
+            $ref: "#/components/schemas/OutputId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetOutputSourceRequest"
+      responses:
+        "202":
+          description: Desired route accepted; output hardware has not necessarily changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Output"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid source ID or request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/outputs/multiview:
+    get:
+      operationId: getMultiview
+      tags: [Outputs]
+      summary: Get 8-way multiview configuration and live tiles
+      description: Returns the 8-way multiview tile layout with WebRTC preview URLs, automatic 4x2 / 2x4 orientation, and PiPGM3 slot replacement.
+      responses:
+        "200":
+          description: Multiview layout and tiles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiviewSnapshot"
+  /api/v1/outputs/multiview/layout:
+    put:
+      operationId: setMultiviewLayout
+      tags: [Outputs]
+      summary: Set preferred multiview layout mode
+      description: Configures layout mode to auto (responsive based on client orientation), landscape (4x2), or portrait (2x4).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [layout]
+              properties:
+                layout:
+                  $ref: "#/components/schemas/MultiviewLayoutMode"
+      responses:
+        "200":
+          description: Updated multiview layout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiviewSnapshot"
+        "422":
+          description: Invalid layout mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/outputs/multiview/slot:
+    put:
+      operationId: setMultiviewSlot
+      tags: [Outputs]
+      summary: Replace a tile slot in the 8-way multiview (e.g. replace cam3 with PiPGM3)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MultiviewSlotRequest"
+      responses:
+        "200":
+          description: Updated multiview layout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiviewSnapshot"
+        "422":
+          description: Invalid slot or source ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/events:
+    get:
+      operationId: getEvents
+      tags: [System]
+      summary: Server-Sent Events stream for runtime state changes
+      description: Emits real-time state changes for sources, outputs, cameras, PiPGM pipelines, and stream jobs.
+      responses:
+        "200":
+          description: Continuous Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/matrix/route:
+    post:
+      operationId: requestMatrixRoute
+      tags: [System]
+      summary: Request an Atlona matrix route through the AMX NetLinx master
+      description: AMX remains the sole controller of the Atlona. PiMatrix forwards the routing request to AMX.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input, output]
+              properties:
+                input:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                output:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+      responses:
+        "200":
+          description: Matrix route requested successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatrixRouteResponse"
+        "422":
+          description: Invalid input or output parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: AMX master is unreachable or route command failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/atem:
+    get:
+      operationId: getAtemState
+      tags: [ATEM]
+      summary: ATEM switcher connection and program/preview state
+      responses:
+        "200":
+          description: Current ATEM state (connected=false when no ATEM is configured)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtemState"
+  /api/v1/atem/program:
+    put:
+      operationId: setAtemProgram
+      tags: [ATEM]
+      summary: Set the program input on the ATEM M/E row
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtemInputRequest"
+      responses:
+        "200":
+          description: Switched; returns the new state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtemState"
+        "422":
+          description: Input is not a valid ATEM input number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: ATEM is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/atem/preview:
+    put:
+      operationId: setAtemPreview
+      tags: [ATEM]
+      summary: Set the preview input on the ATEM M/E row
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtemInputRequest"
+      responses:
+        "200":
+          description: Preview set; returns the new state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtemState"
+        "422":
+          description: Input is not a valid ATEM input number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: ATEM is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/atem/cut:
+    post:
+      operationId: cutAtem
+      tags: [ATEM]
+      summary: Cut program and preview on the ATEM M/E row
+      responses:
+        "200":
+          description: Cut sent; returns the new state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtemState"
+        "503":
+          description: ATEM is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras:
+    get:
+      operationId: listCameras
+      tags: [Cameras]
+      summary: List configured cameras
+      description: Returns all configured PTZ cameras with their current connection, streaming, and position state.
+      responses:
+        "200":
+          description: List of cameras
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Camera"
+  /api/v1/cameras/{cameraId}:
+    get:
+      operationId: getCamera
+      tags: [Cameras]
+      summary: Get details and status for a specific camera
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      responses:
+        "200":
+          description: Camera details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Camera"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/cameras/{cameraId}/move:
+    post:
+      operationId: moveCamera
+      tags: [Cameras]
+      summary: Move camera pan/tilt
+      description: Drives pan/tilt continuously or stops motion using VISCA over IP.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CameraMoveRequest"
+      responses:
+        "200":
+          description: Motion command sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid direction or speed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras/{cameraId}/zoom:
+    post:
+      operationId: zoomCamera
+      tags: [Cameras]
+      summary: Zoom camera in or out
+      description: Drives optical zoom tele/wide or stops zoom using VISCA over IP.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CameraZoomRequest"
+      responses:
+        "200":
+          description: Zoom command sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid zoom action or speed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras/{cameraId}/presets/{presetId}/recall:
+    post:
+      operationId: recallCameraPreset
+      tags: [Cameras]
+      summary: Recall camera preset
+      description: Recalls a saved preset (0-254) on the camera via VISCA CAM_Memory.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+        - in: path
+          name: presetId
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 254
+      responses:
+        "200":
+          description: Preset recall command sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid preset ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras/{cameraId}/presets/{presetId}/save:
+    post:
+      operationId: saveCameraPreset
+      tags: [Cameras]
+      summary: Save current camera position to preset
+      description: Saves the current position, zoom, and image state to a preset (0-254) via VISCA CAM_Memory Set.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+        - in: path
+          name: presetId
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 254
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Preset saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid preset ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras/{cameraId}/smartframe:
+    post:
+      operationId: setCameraSmartFrame
+      tags: [Cameras]
+      summary: Control SmartFrame AI auto-framing
+      description: Enables, disables, or triggers one-shot SmartFrame auto framing.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CameraSmartFrameRequest"
+      responses:
+        "200":
+          description: SmartFrame mode updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid SmartFrame mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/cameras/{cameraId}/stream/start:
+    post:
+      operationId: startCameraStream
+      tags: [Cameras]
+      summary: Start video streaming from camera to MediaMTX
+      description: Commands the camera to push its RTMP feed to MediaMTX or ensures MediaMTX is pulling RTSP.
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      responses:
+        "200":
+          description: Camera stream started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraStreamResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/cameras/{cameraId}/stream/stop:
+    post:
+      operationId: stopCameraStream
+      tags: [Cameras]
+      summary: Stop video streaming from camera
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            $ref: "#/components/schemas/CameraId"
+      responses:
+        "200":
+          description: Camera stream stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraStreamResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # PiPGM Endpoints
+  /api/v1/pipgm/pipelines:
+    get:
+      operationId: listPiPgmPipelines
+      tags: [PiPGM]
+      summary: List PiPGM renderer pipelines (PiPGM1, PiPGM2, and hidden-by-default PiPGM3)
+      parameters:
+        - in: query
+          name: includeHidden
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of PiPGM pipelines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PiPgmPipeline"
+  /api/v1/pipgm/pipelines/{pipelineId}:
+    get:
+      operationId: getPiPgmPipeline
+      tags: [PiPGM]
+      summary: Get one PiPGM pipeline state and playlist
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      responses:
+        "200":
+          description: PiPGM pipeline details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/pipgm/pipelines/{pipelineId}/config:
+    put:
+      operationId: updatePiPgmPipelineConfig
+      tags: [PiPGM]
+      summary: Configure pipeline orientation (portrait/landscape), visibility (PiPGM3), link sync, or fade duration
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PiPgmPipelineConfigRequest"
+      responses:
+        "200":
+          description: Updated pipeline state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid pipeline configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/pipelines/{pipelineId}/control:
+    post:
+      operationId: controlPiPgmPipeline
+      tags: [PiPGM]
+      summary: Execute transport control (next, prev, gotoStep, gotoItem, play, pause, stop, restart)
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PiPgmControlRequest"
+      responses:
+        "200":
+          description: Updated pipeline state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid control command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/pipelines/{pipelineId}/ftb:
+    post:
+      operationId: setPiPgmFadeToBlack
+      tags: [PiPGM]
+      summary: Set or toggle Fade to Black (FTB) on a PiPGM pipeline
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PiPgmFtbRequest"
+      responses:
+        "200":
+          description: Updated pipeline state including mobile FTB alert sign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid FTB request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/pipelines/{pipelineId}/audio:
+    post:
+      operationId: setPiPgmAudio
+      tags: [PiPGM]
+      summary: Enable or disable (mute/unmute) audio and set volume on a PiPGM pipeline
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PiPgmAudioRequest"
+      responses:
+        "200":
+          description: Updated pipeline state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid audio request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/pipelines/{pipelineId}/playlist:
+    post:
+      operationId: addPiPgmPlaylistItem
+      tags: [PiPGM]
+      summary: Add a library item to a pipeline's playlist and optionally cue it immediately
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId]
+              properties:
+                itemId:
+                  type: string
+                cueImmediately:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated pipeline state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/pipgm/pipelines/{pipelineId}/playlist/{itemId}:
+    delete:
+      operationId: removePiPgmPlaylistItem
+      tags: [PiPGM]
+      summary: Remove an item from a pipeline's playlist
+      parameters:
+        - in: path
+          name: pipelineId
+          required: true
+          schema:
+            $ref: "#/components/schemas/PiPgmPipelineId"
+        - in: path
+          name: itemId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated pipeline state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/pipgm/items:
+    get:
+      operationId: listPiPgmItems
+      tags: [PiPGM]
+      summary: List all presentation and media items in the shared PiPGM library
+      responses:
+        "200":
+          description: Library items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PiPgmItem"
+  /api/v1/pipgm/items/{itemId}:
+    get:
+      operationId: getPiPgmItem
+      tags: [PiPGM]
+      summary: Get details and steps for a specific PiPGM item
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PiPGM item details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/pipgm/items/hymn:
+    post:
+      operationId: createPiPgmHymnItem
+      tags: [PiPGM]
+      summary: Create a hymn presentation with stanzas as slides
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmHymnRequest"
+      responses:
+        "201":
+          description: Created hymn item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "422":
+          description: Invalid hymn payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/items/youtube:
+    post:
+      operationId: createPiPgmYouTubeItem
+      tags: [PiPGM]
+      summary: Create a YouTube video embedding item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmYouTubeRequest"
+      responses:
+        "201":
+          description: Created YouTube item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "422":
+          description: Invalid YouTube URL or video ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/items/media:
+    post:
+      operationId: createPiPgmMediaItem
+      tags: [PiPGM]
+      summary: Upload a video or image file item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmMediaRequest"
+      responses:
+        "201":
+          description: Created video or image item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "422":
+          description: Invalid media payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/items/pptx:
+    post:
+      operationId: createPiPgmPptxItem
+      tags: [PiPGM]
+      summary: Direct upload of a PowerPoint (.pptx) presentation with animations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmPptxRequest"
+      responses:
+        "201":
+          description: Created PowerPoint item with animation build steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "422":
+          description: Invalid PowerPoint upload payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/items/canva:
+    post:
+      operationId: createPiPgmCanvaItem
+      tags: [PiPGM]
+      summary: Create a Canva presentation item (live embed or exported MP4/slides)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmCanvaRequest"
+      responses:
+        "201":
+          description: Created Canva item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "422":
+          description: Invalid Canva design reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/canva/control:
+    post:
+      operationId: controlPiPgmCanvaPresentation
+      tags: [PiPGM]
+      summary: Control active Canva presentation from a Canva App plugin or embed (FTB, mute, navigation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PiPgmCanvaControlRequest"
+      responses:
+        "200":
+          description: Canva presentation control applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, action]
+                properties:
+                  success:
+                    type: boolean
+                  action:
+                    type: string
+                  pipelines:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PiPgmPipeline"
+        "422":
+          description: Invalid control action or target
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/canva/push:
+    post:
+      operationId: pushPiPgmCanvaDesign
+      tags: [PiPGM]
+      summary: Receive a one-click design push from the Team Canva App plugin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePiPgmCanvaRequest"
+      responses:
+        "201":
+          description: Canva design accepted and queued in PiPGM
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, item, pipeline]
+                properties:
+                  accepted:
+                    type: boolean
+                  item:
+                    $ref: "#/components/schemas/PiPgmItem"
+                  pipeline:
+                    oneOf:
+                      - $ref: "#/components/schemas/PiPgmPipeline"
+                      - type: "null"
+        "422":
+          description: Invalid Canva push payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/pipgm/items/{itemId}/canva/export:
+    post:
+      operationId: exportPiPgmCanvaItem
+      tags: [PiPGM]
+      summary: Trigger Canva Connect API export to MP4 or PNG slides for offline Pi rendering
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [mp4, png]
+                orientation:
+                  $ref: "#/components/schemas/PiPgmOrientation"
+                switchToExportedMode:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated Canva item with export job status and local asset URLs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PiPgmItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/effects:
+    get:
+      operationId: listAllEffects
+      tags: [Effects]
+      summary: List effects pipelines for all logical sources
+      description: Returns current crop, position, rotation, and FFmpeg filter specifications for all 8 inputs.
+      responses:
+        "200":
+          description: List of source effects pipelines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EffectsPipeline"
+  /api/v1/sources/{sourceId}/effects:
+    get:
+      operationId: getSourceEffects
+      tags: [Effects]
+      summary: Get effects pipeline configuration for an input source
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      responses:
+        "200":
+          description: Source effects pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/sources/{sourceId}/effects/crop:
+    put:
+      operationId: updateSourceCrop
+      tags: [Effects]
+      summary: Update crop bounds and aspect ratio for an input source
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCropRequest"
+      responses:
+        "200":
+          description: Updated effects pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid crop bounds or properties
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/sources/{sourceId}/effects/crop/preset:
+    post:
+      operationId: applySourceCropPreset
+      tags: [Effects]
+      summary: Apply aspect ratio preset to source crop (e.g. 9:16 vertical or 10:16 Epson projector)
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CropPresetRequest"
+      responses:
+        "200":
+          description: Preset applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid preset action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/sources/{sourceId}/effects/crop/move:
+    post:
+      operationId: moveSourceCrop
+      tags: [Effects]
+      summary: Move or pan crop window in a cardinal direction or center
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveCropRequest"
+      responses:
+        "200":
+          description: Crop moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid direction or delta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/sources/{sourceId}/effects/crop/resize:
+    post:
+      operationId: resizeSourceCrop
+      tags: [Effects]
+      summary: Resize crop window in or out (zoom) preserving center and aspect ratio
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResizeCropRequest"
+      responses:
+        "200":
+          description: Crop resized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid action or factor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/sources/{sourceId}/effects/rotation:
+    post:
+      operationId: setSourceRotation
+      tags: [Effects]
+      summary: Set video rotation (0, 90, 180, 270 degrees)
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetRotationRequest"
+      responses:
+        "200":
+          description: Rotation updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid rotation degrees
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/outputs/{outputId}/effects:
+    get:
+      operationId: getOutputEffects
+      tags: [Effects]
+      summary: Get active effects pipeline for an output (inherited from its routed source)
+      parameters:
+        - in: path
+          name: outputId
+          required: true
+          schema:
+            $ref: "#/components/schemas/OutputId"
+      responses:
+        "200":
+          description: Output effects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [outputId]
+                properties:
+                  outputId:
+                    $ref: "#/components/schemas/OutputId"
+                  sourceId:
+                    type: [string, "null"]
+                  effects:
+                    anyOf:
+                      - $ref: "#/components/schemas/EffectsPipeline"
+                      - type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/outputs/{outputId}/effects/crop:
+    put:
+      operationId: updateOutputCrop
+      tags: [Effects]
+      summary: Update crop bounds on the source routed to this output
+      parameters:
+        - in: path
+          name: outputId
+          required: true
+          schema:
+            $ref: "#/components/schemas/OutputId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCropRequest"
+      responses:
+        "200":
+          description: Updated effects pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectsPipeline"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Output is not routed or invalid crop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/status:
+    get:
+      operationId: getAuthStatus
+      tags: [System]
+      summary: Auth requirements and caller IP; mediaMtxPassword only for operators
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/auth/verify:
+    post:
+      operationId: verifyAuth
+      tags: [System]
+      summary: Check a key (body.key, Bearer or x-api-key)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/matrix:
+    get:
+      operationId: getMatrix
+      tags: [Outputs]
+      summary: Atlona matrix routes and lock state
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/matrix/lock:
+    put:
+      operationId: setMatrixLock
+      tags: [Outputs]
+      summary: Lock or unlock the Atlona matrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locked]
+              properties:
+                locked:
+                  type: boolean
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/outputs/rtsp:
+    get:
+      operationId: getRtspOutput
+      tags: [Outputs]
+      summary: RTSP output source and streaming state
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/outputs/rtsp/source:
+    put:
+      operationId: setRtspOutputSource
+      tags: [Outputs]
+      summary: Choose the logical source for the RTSP output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceId]
+              properties:
+                sourceId:
+                  oneOf:
+                    - $ref: "#/components/schemas/SourceId"
+                    - type: "null"
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/outputs/rtsp/stream:
+    post:
+      operationId: toggleRtspStream
+      tags: [Outputs]
+      summary: Start, stop or toggle RTSP streaming
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/pipgm/assets/{assetId}:
+    get:
+      operationId: getPipgmAsset
+      tags: [PiPGM]
+      summary: Serve a PiPGM asset file
+      parameters:
+        - in: path
+          name: assetId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/cameras/{cameraId}/presets/{presetId}/thumbnail:
+    post:
+      operationId: captureCameraPresetThumbnail
+      tags: [Cameras]
+      summary: Capture a thumbnail for a camera preset
+      parameters:
+        - in: path
+          name: cameraId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: presetId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/sources/{sourceId}/effects/ftb:
+    post:
+      operationId: setSourceFadeToBlack
+      tags: [Effects]
+      summary: Fade a source to black or back (fadeToBlack or toggle)
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/sources/{sourceId}/effects/mute:
+    post:
+      operationId: setSourceMute
+      tags: [Effects]
+      summary: Mute or unmute a source audio (muted or toggle)
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: OK
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid request
+  /api/v1/composites:
+    get:
+      operationId: listComposites
+      tags: [Composites]
+      summary: Slide composites (compose1 HDMI key, compose2 ATEM media) with their state
+      responses:
+        "200":
+          description: Both composites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompositeList"
+  /api/v1/composites/slide:
+    put:
+      operationId: setCompositeSlide
+      tags: [Composites]
+      summary: Send the slide PNG; every enabled composite is refreshed
+      description: The body is the raw PNG (Content-Type image/png), at most 10 MB. Work runs in the background; poll the composites for state.
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "202":
+          description: Slide accepted; the composites are returned in their new state (busy while working)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompositeList"
+        "415":
+          description: Content-Type is not image/png
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: The body is not a PNG, or is larger than 10 MB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/composites/{id}:
+    parameters:
+      - $ref: "#/components/parameters/CompositeIdPath"
+    get:
+      operationId: getComposite
+      tags: [Composites]
+      summary: One composite's settings and state
+      responses:
+        "200":
+          description: The composite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Composite"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateComposite
+      tags: [Composites]
+      summary: Change settings; an enabled composite is refreshed when its picture changes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompositePatch"
+      responses:
+        "200":
+          description: Updated composite (state is busy while the change is applied)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Composite"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: A field is unknown or out of range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/composites/{id}/start:
+    parameters:
+      - $ref: "#/components/parameters/CompositeIdPath"
+    post:
+      operationId: startComposite
+      tags: [Composites]
+      summary: Enable the composite and show it (HDMI key) or load it (ATEM media)
+      responses:
+        "200":
+          description: Enabled; state shows the progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Composite"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/composites/{id}/stop:
+    parameters:
+      - $ref: "#/components/parameters/CompositeIdPath"
+    post:
+      operationId: stopComposite
+      tags: [Composites]
+      summary: Disable the composite; stops the HDMI player or takes the ATEM DSK off air
+      responses:
+        "200":
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Composite"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/composites/{id}/preview.png:
+    parameters:
+      - $ref: "#/components/parameters/CompositeIdPath"
+    get:
+      operationId: getCompositePreview
+      tags: [Composites]
+      summary: The key page the composite would show now, as a PNG
+      responses:
+        "200":
+          description: PNG of the key page at the composite's frame size
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Unknown composite, or no slide has been sent yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  parameters:
+    CompositeIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/CompositeId"
+  responses:
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    AtemInputRequest:
+      type: object
+      required: [input]
+      properties:
+        input:
+          type: integer
+          minimum: 1
+          maximum: 40
+    AtemState:
+      type: object
+      required: [connected, programInput, previewInput, transition]
+      properties:
+        connected:
+          type: boolean
+        programInput:
+          type: integer
+          nullable: true
+        previewInput:
+          type: integer
+          nullable: true
+        transition:
+          type: object
+          required: [inTransition, remainingFrames]
+          properties:
+            inTransition:
+              type: boolean
+            remainingFrames:
+              type: integer
+    CompositeId:
+      type: string
+      enum: [compose1, compose2]
+    CompositeOutputKind:
+      type: string
+      enum: [hdmi-key, atem-media]
+    CompositeAtem:
+      type: object
+      required: [mediaSlot, mediaPlayer, dskIndex, autoOnAir]
+      properties:
+        mediaSlot:
+          type: integer
+          minimum: 1
+          maximum: 64
+          description: ATEM media pool still slot the slide is uploaded to (1-based)
+        mediaPlayer:
+          type: integer
+          minimum: 1
+          maximum: 4
+          description: ATEM media player that feeds the DSK (1-based)
+        dskIndex:
+          type: integer
+          minimum: 1
+          maximum: 4
+          description: ATEM downstream keyer (1-based)
+        autoOnAir:
+          type: boolean
+          description: Put the DSK on air after an upload. Default false.
+    Composite:
+      type: object
+      required: [id, kind, enabled, width, height, side, slideAspect, slideScale, keyColor, keyMode, atem, state, lastError, hasSlide, updatedAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/CompositeId"
+        kind:
+          $ref: "#/components/schemas/CompositeOutputKind"
+        enabled:
+          type: boolean
+        width:
+          type: integer
+          description: Frame width in pixels (even, 16 to 3840)
+        height:
+          type: integer
+          description: Frame height in pixels (even, 16 to 3840)
+        side:
+          type: string
+          enum: [left, right]
+        slideAspect:
+          type: string
+          enum: ["10:16", "9:16"]
+        slideScale:
+          type: number
+          minimum: 0.6
+          maximum: 1
+          description: Slide height as a fraction of the frame height
+        keyColor:
+          type: string
+          pattern: "^#[0-9a-f]{6}$"
+          description: Background colour of the HDMI key page (ignored for luma and atem-media)
+        keyMode:
+          type: string
+          enum: [chroma, luma]
+        atem:
+          $ref: "#/components/schemas/CompositeAtem"
+        state:
+          type: string
+          enum: [stopped, waiting, busy, running, failed]
+          description: waiting = enabled but no slide yet; busy = rendering or uploading; running = shown or loaded; failed = see lastError
+        lastError:
+          type: string
+          nullable: true
+        hasSlide:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+    CompositeList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Composite"
+    CompositePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        width:
+          type: integer
+        height:
+          type: integer
+        side:
+          type: string
+          enum: [left, right]
+        slideAspect:
+          type: string
+          enum: ["10:16", "9:16"]
+        slideScale:
+          type: number
+          minimum: 0.6
+          maximum: 1
+        keyColor:
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+        keyMode:
+          type: string
+          enum: [chroma, luma]
+        atem:
+          type: object
+          additionalProperties: false
+          properties:
+            mediaSlot:
+              type: integer
+              minimum: 1
+              maximum: 64
+            mediaPlayer:
+              type: integer
+              minimum: 1
+              maximum: 4
+            dskIndex:
+              type: integer
+              minimum: 1
+              maximum: 4
+            autoOnAir:
+              type: boolean
+    SourceId:
+      type: string
+      enum: [hama, rtmp1, rtmp2, cam1, cam2, cam3, PiPGM1, PiPGM2, PiPGM3]
+    OutputId:
+      type: string
+      enum: [hdmi0, hdmi1, multiview]
+    PiPgmPipelineId:
+      type: string
+      enum: [PiPGM1, PiPGM2, PiPGM3]
+    PiPgmOrientation:
+      type: string
+      enum: [landscape, portrait]
+    Health:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: pimatrix
+    Readiness:
+      type: object
+      required: [ready, mode, checks]
+      properties:
+        ready:
+          type: boolean
+        mode:
+          type: string
+          enum: [simulation, production]
+        checks:
+          type: object
+          required: [api, media, capture, display]
+          properties:
+            api: { type: string }
+            media: { type: string }
+            capture: { type: string }
+            display: { type: string }
+    Status:
+      type: object
+      required: [apiVersion, service, mode, status, integrations, managedStreams, counts]
+      properties:
+        apiVersion:
+          type: string
+          const: v1
+        service:
+          type: string
+          const: pimatrix
+        mode:
+          type: string
+          enum: [simulation, production]
+        status:
+          type: string
+          const: running
+        integrations:
+          type: object
+          required: [mediaMtx, fffleet, capture, display, amx]
+          properties:
+            mediaMtx: { type: string }
+            fffleet: { type: string }
+            capture: { type: string }
+            display: { type: string }
+            amx: { type: string }
+        managedStreams:
+          type: object
+          required: [hama]
+          properties:
+            hama:
+              type: object
+              required: [state, jobId, attempt, lastError, stderrTail]
+              properties:
+                state:
+                  type: string
+                  enum: [disabled, starting, running, degraded, failed, stopping]
+                jobId:
+                  type: [string, "null"]
+                attempt:
+                  type: integer
+                lastError:
+                  type: [string, "null"]
+                stderrTail:
+                  type: [string, "null"]
+        counts:
+          type: object
+          required: [sources, outputs]
+          properties:
+            sources: { type: integer }
+            outputs: { type: integer }
+            cameras: { type: integer }
+            pipgmPipelines: { type: integer }
+    SourcePreview:
+      type: object
+      required: [available, url]
+      properties:
+        available: { type: boolean }
+        url:
+          type: [string, "null"]
+          format: uri
+    Source:
+      type: object
+      required: [id, label, kind, state, preview]
+      properties:
+        id:
+          $ref: "#/components/schemas/SourceId"
+        label:
+          type: string
+        kind:
+          type: string
+          enum: [capture, rtmp, camera, renderer]
+        state:
+          type: string
+          enum: [unavailable, starting, live, degraded, failed]
+        preview:
+          type: object
+          required: [available, url]
+          properties:
+            available: { type: boolean }
+            url:
+              type: [string, "null"]
+              format: uri
+    SetOutputSourceRequest:
+      type: object
+      required: [sourceId]
+      properties:
+        sourceId:
+          oneOf:
+            - $ref: "#/components/schemas/SourceId"
+            - type: "null"
+    Output:
+      type: object
+      required: [id, label, desiredSource, observedSource, state]
+      properties:
+        id:
+          $ref: "#/components/schemas/OutputId"
+        label:
+          type: string
+        desiredSource:
+          oneOf:
+            - $ref: "#/components/schemas/SourceId"
+            - type: "null"
+        observedSource:
+          oneOf:
+            - $ref: "#/components/schemas/SourceId"
+            - type: "null"
+        state:
+          type: string
+          enum: [unavailable, starting, active, failed]
+    MatrixRouteResponse:
+      type: object
+      required: [requestId, success, input, output, confirmed]
+      properties:
+        requestId:
+          type: string
+        success:
+          type: boolean
+        input:
+          type: integer
+        output:
+          type: integer
+        confirmed:
+          type: boolean
+        message:
+          type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+    CameraId:
+      type: string
+      enum: [cam1, cam2, cam3]
+    CameraMoveRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          enum: [up, down, left, right, upleft, upright, downleft, downright, stop, home, reset]
+        panSpeed:
+          type: integer
+          minimum: 1
+          maximum: 24
+          default: 10
+        tiltSpeed:
+          type: integer
+          minimum: 1
+          maximum: 23
+          default: 10
+    CameraZoomRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [in, out, stop]
+        speed:
+          type: integer
+          minimum: 0
+          maximum: 7
+          default: 4
+    CameraSmartFrameRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [enable, disable, trigger]
+    CameraPreset:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    CameraPosition:
+      type: object
+      required: [pan, tilt, zoom]
+      properties:
+        pan:
+          type: integer
+        tilt:
+          type: integer
+        zoom:
+          type: integer
+    Camera:
+      type: object
+      required: [id, label, model, connection, streaming, smartFrame, position, presets]
+      properties:
+        id:
+          $ref: "#/components/schemas/CameraId"
+        label:
+          type: string
+        model:
+          type: string
+        connection:
+          type: string
+          enum: [connected, disconnected, simulated]
+        streaming:
+          type: boolean
+        streamUrl:
+          type: [string, "null"]
+        smartFrame:
+          type: string
+          enum: [enabled, disabled, triggered, unsupported]
+        position:
+          $ref: "#/components/schemas/CameraPosition"
+        presets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CameraPreset"
+    CameraActionResponse:
+      type: object
+      required: [cameraId, success, action]
+      properties:
+        cameraId:
+          $ref: "#/components/schemas/CameraId"
+        success:
+          type: boolean
+        action:
+          type: string
+        message:
+          type: string
+    CameraStreamResponse:
+      type: object
+      required: [cameraId, streaming]
+      properties:
+        cameraId:
+          $ref: "#/components/schemas/CameraId"
+        streaming:
+          type: boolean
+        streamUrl:
+          type: [string, "null"]
+        message:
+          type: string
+    MultiviewLayoutMode:
+      type: string
+      enum: [auto, landscape, portrait]
+    MultiviewSlotRequest:
+      type: object
+      required: [sourceId]
+      properties:
+        slotIndex:
+          type: integer
+          minimum: 0
+          maximum: 7
+        replaceSourceId:
+          $ref: "#/components/schemas/SourceId"
+        sourceId:
+          oneOf:
+            - $ref: "#/components/schemas/SourceId"
+            - type: "null"
+    MultiviewTilePiPgmStatus:
+      type: object
+      required: [orientation, fadeToBlack, audioEnabled, signCode, cuedSummary]
+      properties:
+        orientation:
+          $ref: "#/components/schemas/PiPgmOrientation"
+        fadeToBlack:
+          type: boolean
+        audioEnabled:
+          type: boolean
+        signCode:
+          type: string
+        cuedSummary:
+          type: [string, "null"]
+    MultiviewTile:
+      type: object
+      required: [index, sourceId, label, kind, state, preview]
+      properties:
+        index:
+          type: integer
+        sourceId:
+          $ref: "#/components/schemas/SourceId"
+        replacedSourceId:
+          oneOf:
+            - $ref: "#/components/schemas/SourceId"
+            - type: "null"
+        label:
+          type: string
+        kind:
+          type: string
+        state:
+          type: string
+        preview:
+          $ref: "#/components/schemas/SourcePreview"
+        pipgm:
+          $ref: "#/components/schemas/MultiviewTilePiPgmStatus"
+    MultiviewSnapshot:
+      type: object
+      required: [id, label, layout, landscape, portrait, tiles]
+      properties:
+        id:
+          type: string
+          enum: [multiview]
+        label:
+          type: string
+        layout:
+          $ref: "#/components/schemas/MultiviewLayoutMode"
+        landscape:
+          type: object
+          required: [columns, rows]
+          properties:
+            columns:
+              type: integer
+            rows:
+              type: integer
+        portrait:
+          type: object
+          required: [columns, rows]
+          properties:
+            columns:
+              type: integer
+            rows:
+              type: integer
+        tiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MultiviewTile"
+
+    # PiPGM Schemas
+    PiPgmStepDescriptor:
+      type: object
+      required: [stepIndex, totalSteps, label]
+      properties:
+        stepIndex:
+          type: integer
+        totalSteps:
+          type: integer
+        label:
+          type: string
+        subLabel:
+          type: string
+        slideNumber:
+          type: integer
+        buildIndex:
+          type: integer
+        effect:
+          type: string
+        previewText:
+          type: array
+          items:
+            type: string
+        assetUrl:
+          type: string
+    PiPgmMobileAlert:
+      type: object
+      required: [fadeToBlackActive, audioArmed, signCode, bannerText, ghostPreviewAvailable, cuedSummary]
+      properties:
+        fadeToBlackActive:
+          type: boolean
+        audioArmed:
+          type: boolean
+        signCode:
+          type: string
+          enum: [NORMAL, FADED_TO_BLACK, SOUND_ON_AIR, FTB_AND_SOUND_ON]
+        bannerText:
+          type: [string, "null"]
+        ghostPreviewAvailable:
+          type: boolean
+        cuedSummary:
+          type: [string, "null"]
+    PiPgmItem:
+      type: object
+      required: [id, title, kind, createdAt, steps]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        kind:
+          type: string
+          enum: [pptx, canva, youtube, video, image, hymn]
+        createdAt:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PiPgmStepDescriptor"
+        pptx:
+          type: object
+        canva:
+          type: object
+        youtube:
+          type: object
+        video:
+          type: object
+        image:
+          type: object
+        hymn:
+          type: object
+    PiPgmPipeline:
+      type: object
+      required:
+        - id
+        - label
+        - hidden
+        - orientation
+        - resolution
+        - state
+        - fadeToBlack
+        - fadeDurationMs
+        - audioEnabled
+        - volume
+        - linked
+        - activeItemId
+        - activeItemIndex
+        - currentStep
+        - totalSteps
+        - currentStepDetail
+        - nextStepDetail
+        - playbackState
+        - stageUrl
+        - mobileAlert
+        - stream
+        - playlist
+      properties:
+        id:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        label:
+          type: string
+        hidden:
+          type: boolean
+        orientation:
+          $ref: "#/components/schemas/PiPgmOrientation"
+        resolution:
+          type: object
+          required: [width, height]
+          properties:
+            width: { type: integer }
+            height: { type: integer }
+        state:
+          type: string
+          enum: [idle, live, blackout, starting, degraded, failed]
+        fadeToBlack:
+          type: boolean
+        fadeDurationMs:
+          type: integer
+        audioEnabled:
+          type: boolean
+        volume:
+          type: integer
+        linked:
+          type: boolean
+        activeItemId:
+          type: [string, "null"]
+        activeItemIndex:
+          type: integer
+        currentStep:
+          type: integer
+        totalSteps:
+          type: integer
+        currentStepDetail:
+          oneOf:
+            - $ref: "#/components/schemas/PiPgmStepDescriptor"
+            - type: "null"
+        nextStepDetail:
+          oneOf:
+            - $ref: "#/components/schemas/PiPgmStepDescriptor"
+            - type: "null"
+        playbackState:
+          type: string
+          enum: [playing, paused, stopped]
+        stageUrl:
+          type: string
+        mobileAlert:
+          $ref: "#/components/schemas/PiPgmMobileAlert"
+        stream:
+          type: object
+        playlist:
+          type: array
+          items:
+            $ref: "#/components/schemas/PiPgmItem"
+    PiPgmPipelineConfigRequest:
+      type: object
+      properties:
+        orientation:
+          $ref: "#/components/schemas/PiPgmOrientation"
+        hidden:
+          type: boolean
+        linked:
+          type: boolean
+        fadeDurationMs:
+          type: integer
+    PiPgmControlRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [next, prev, gotoStep, gotoItem, play, pause, stop, restart]
+        stepIndex:
+          type: integer
+        itemId:
+          type: string
+        itemIndex:
+          type: integer
+        advanceItemOnEnd:
+          type: boolean
+        sync:
+          type: boolean
+    PiPgmFtbRequest:
+      type: object
+      properties:
+        fadeToBlack:
+          type: boolean
+        toggle:
+          type: boolean
+        durationMs:
+          type: integer
+        sync:
+          type: boolean
+    PiPgmAudioRequest:
+      type: object
+      properties:
+        audioEnabled:
+          type: boolean
+        toggle:
+          type: boolean
+        volume:
+          type: integer
+        sync:
+          type: boolean
+    CreatePiPgmHymnRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        hymnNumber:
+          type: string
+        includeTitleSlide:
+          type: boolean
+        rawText:
+          type: string
+        stanzas:
+          type: array
+          items:
+            type: object
+            required: [lines]
+            properties:
+              stanzaNumber:
+                type: string
+              lines:
+                type: array
+                items:
+                  type: string
+              refrain:
+                type: boolean
+        targetPipelineId:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        cueImmediately:
+          type: boolean
+    CreatePiPgmYouTubeRequest:
+      type: object
+      required: [urlOrId]
+      properties:
+        title:
+          type: string
+        urlOrId:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        autoplay:
+          type: boolean
+        loop:
+          type: boolean
+        targetPipelineId:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        cueImmediately:
+          type: boolean
+    CreatePiPgmMediaRequest:
+      type: object
+      required: [kind, filename]
+      properties:
+        kind:
+          type: string
+          enum: [video, image]
+        title:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        dataBase64:
+          type: string
+        fit:
+          type: string
+          enum: [contain, cover]
+        caption:
+          type: string
+        durationMs:
+          type: integer
+        autoplay:
+          type: boolean
+        loop:
+          type: boolean
+        targetPipelineId:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        cueImmediately:
+          type: boolean
+    CreatePiPgmPptxRequest:
+      type: object
+      required: [filename]
+      properties:
+        title:
+          type: string
+        filename:
+          type: string
+        dataBase64:
+          type: string
+        animateBulletsByDefault:
+          type: boolean
+        slides:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              slideNumber:
+                type: integer
+              title:
+                type: string
+              bullets:
+                type: array
+                items:
+                  type: string
+              notes:
+                type: string
+              builds:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    effect:
+                      type: string
+                      enum: [initial, appear, fade, wipe, fly, zoom, morph]
+                    targetText:
+                      type: string
+                    durationMs:
+                      type: integer
+        targetPipelineId:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        cueImmediately:
+          type: boolean
+    PiPgmCanvaControlRequest:
+      type: object
+      required: [action]
+      properties:
+        designId:
+          type: string
+          description: Optional Canva design ID to find and target active pipeline(s)
+        targetPipelineId:
+          type: string
+          description: Optional target pipeline (PiPGM1, PiPGM2, PiPGM3, or all)
+        action:
+          type: string
+          description: Control action to perform
+          enum: [next, prev, gotoPage, gotoStep, ftb, mute, play, pause, stop, restart, mode]
+        pageNumber:
+          type: integer
+          description: 1-based Canva page number to jump to
+        stepIndex:
+          type: integer
+          description: 0-based step index to jump to
+        fadeToBlack:
+          type: boolean
+          description: Direct Fade to Black state when action is ftb
+        ftbToggle:
+          type: boolean
+          description: Toggle Fade to Black when action is ftb
+        audioEnabled:
+          type: boolean
+          description: Direct audio enabled state when action is mute
+        muteToggle:
+          type: boolean
+          description: Toggle mute when action is mute
+        mode:
+          type: string
+          enum: [embed, exported_mp4, exported_slides]
+          description: Switch Canva render mode
+        sync:
+          type: boolean
+          description: Whether to synchronize linked pipelines
+    CreatePiPgmCanvaRequest:
+      type: object
+      properties:
+        designId:
+          type: string
+        title:
+          type: string
+        embedUrl:
+          type: string
+        viewUrl:
+          type: string
+        editUrl:
+          type: string
+        pageCount:
+          type: integer
+        exportUrls:
+          type: array
+          items:
+            type: string
+        exportFormat:
+          type: string
+          enum: [mp4, png]
+        mode:
+          type: string
+          enum: [embed, exported_mp4, exported_slides]
+        autoExport:
+          type: boolean
+        targetPipelineId:
+          $ref: "#/components/schemas/PiPgmPipelineId"
+        cueImmediately:
+          type: boolean
+        orientation:
+          $ref: "#/components/schemas/PiPgmOrientation"
+    AspectRatioPreset:
+      type: string
+      enum: ["16:9", "9:16", "16:10", "10:16", "4:3", "1:1", "free"]
+    CropPresetAction:
+      type: string
+      enum:
+        - force-vertical-9-16
+        - force-vertical-10-16
+        - force-landscape-16-9
+        - force-landscape-16-10
+        - center
+        - reset
+    MoveDirection:
+      type: string
+      enum: [left, right, up, down, center]
+    CropSettings:
+      type: object
+      required:
+        - enabled
+        - x
+        - y
+        - width
+        - height
+        - sourceWidth
+        - sourceHeight
+        - aspectRatio
+        - lockedAspectRatio
+      properties:
+        enabled:
+          type: boolean
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        sourceWidth:
+          type: number
+        sourceHeight:
+          type: number
+        aspectRatio:
+          $ref: "#/components/schemas/AspectRatioPreset"
+        lockedAspectRatio:
+          type: boolean
+    EffectsPipeline:
+      type: object
+      required: [sourceId, crop, rotation, ffmpegFilter]
+      properties:
+        sourceId:
+          $ref: "#/components/schemas/SourceId"
+        crop:
+          $ref: "#/components/schemas/CropSettings"
+        rotation:
+          type: integer
+          enum: [0, 90, 180, 270]
+        ffmpegFilter:
+          type: string
+    UpdateCropRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        sourceWidth:
+          type: number
+        sourceHeight:
+          type: number
+        aspectRatio:
+          $ref: "#/components/schemas/AspectRatioPreset"
+        lockedAspectRatio:
+          type: boolean
+    CropPresetRequest:
+      type: object
+      required: [preset]
+      properties:
+        preset:
+          $ref: "#/components/schemas/CropPresetAction"
+    MoveCropRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          $ref: "#/components/schemas/MoveDirection"
+        delta:
+          type: number
+    ResizeCropRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [in, out]
+        factor:
+          type: number
+    SetRotationRequest:
+      type: object
+      required: [rotation]
+      properties:
+        rotation:
+          type: integer
+          enum: [0, 90, 180, 270]

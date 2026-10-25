@@ -1,0 +1,14 @@
+# Untested on the Pi. systemd user service (linger on), like pimatrix.
+[Unit]
+Description=picontrol MCP server
+After=network-online.target pimatrix.service
+[Service]
+WorkingDirectory=/home/pi/apps/picontrol-mcp
+EnvironmentFile=/home/pi/apps/picontrol-mcp.env
+Environment=PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_NO_WARNINGS=1
+ExecStart=/home/pi/.local/bin/node dist/server.js
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=default.target
