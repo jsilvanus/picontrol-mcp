@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run generate && npm run typecheck
+      - run: npm test
+      - run: npm run build
+  spec-drift:
+    # Fails when the vendored specs differ from the upstream main branches. Informational: run `npm run spec:sync`.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for name in pimatrix pivoice; do
+            curl -fsSL "https://raw.githubusercontent.com/jsilvanus/$name/main/openapi/openapi.yaml" -o "/tmp/$name.yaml" || { echo "cannot fetch $name (private repo?)"; continue; }
+            diff -q "openapi/$name.yaml" "/tmp/$name.yaml" || echo "::warning::openapi/$name.yaml differs from $name main"
+          done
