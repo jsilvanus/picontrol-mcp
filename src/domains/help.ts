@@ -9,6 +9,10 @@ This server controls the church's Pi video and audio system. Read state from the
 - **program**: the PiPGM pipelines (hymn slides, media, PowerPoint, Canva): program_control, program_playlist, program_create_item, fade-to-black and audio per pipeline; slides_canva_* for Canva presentations.
 - **composites**: slide overlay for the ATEM key: composite_set_slide, composite_control.
 - **voice**: microphone, web radio, transcription and captions (on / off / auto): voice_set_radio_mode, voice_set_transcription_mode, voice_set_captions_mode, voice_capture.
+- **youtube**: YouTube live stream broadcast management (pitube): youtube_broadcast_list, youtube_broadcast_select, youtube_broadcast_create, youtube_broadcast_start (Go Live), youtube_broadcast_stop, and youtube_status.
+- **tally**: Tally-Ma wireless tally lights & director cues (pilight): tally_list, tally_set_state (PGM/PRV/OFF), tally_cue (pan/zoom cues), tally_call, tally_hold, tally_brightness, tally_set_segments, tally_cycle.
+- **radio**: Web radio relay streaming: radio_status, radio_start, radio_stop.
+- **encoder**: Matrox Monarch HDX hardware encoder: encoder_status, encoder_control (start/stop encoder 1 or 2), encoder_input_status.
 
 ## Safety during a service
 - Tools marked destructive can change what the congregation sees or hears at once. Confirm with the user before using them unless they just asked for exactly that.

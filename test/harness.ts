@@ -44,7 +44,7 @@ export interface Harness {
 }
 
 export async function startHarness(options: {
-  pimatrixUrl?: string; pivoiceUrl?: string;
+  pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pilightUrl?: string; radioUrl?: string; encoderUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
 } = {}): Promise<Harness> {
@@ -52,16 +52,21 @@ export async function startHarness(options: {
   const users = new UserStore(join(dir, 'users.json'));
   const auditPath = join(dir, 'audit.log');
   const allowedHosts: string[] = [];
+  const authStore = new SqliteAuthStore(join(dir, 'state.sqlite'));
   const app = await buildApp({
     publicUrl: 'http://127.0.0.1',
     jwtSecret: randomBytes(32),
     authMode: options.authMode ?? 'both',
     allowedHosts,
-    store: new SqliteAuthStore(join(dir, 'state.sqlite')),
+    store: authStore,
     users,
     upstreams: createUpstreams({
       ...(options.pimatrixUrl ? { pimatrix: { url: options.pimatrixUrl, secret: 'pimatrix-secret-key' } } : {}),
       ...(options.pivoiceUrl ? { pivoice: { url: options.pivoiceUrl, secret: 'pivoice-secret-token' } } : {}),
+      ...(options.pitubeUrl ? { pitube: { url: options.pitubeUrl, secret: 'pitube-secret-key' } } : {}),
+      ...(options.pilightUrl ? { pilight: { url: options.pilightUrl, secret: 'pilight-secret-key' } } : {}),
+      ...(options.radioUrl ? { radio: { url: options.radioUrl, secret: 'radio-secret-token' } } : {}),
+      ...(options.encoderUrl ? { encoder: { url: options.encoderUrl, secret: 'encoder-secret-token' } } : {}),
     }),
     audit: new AuditLog(auditPath),
     logger: false,
@@ -73,6 +78,6 @@ export async function startHarness(options: {
   allowedHosts.push(`127.0.0.1:${port}`);
   return {
     app, base: `http://127.0.0.1:${port}`, dir, users, auditPath,
-    close: async () => { await app.close(); rmSync(dir, { recursive: true, force: true }); },
+    close: async () => { await app.close(); authStore.close(); try { rmSync(dir, { recursive: true, force: true }); } catch {} },
   };
 }

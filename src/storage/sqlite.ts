@@ -49,4 +49,8 @@ export class SqliteAuthStore implements AuthStore {
     }
     return { token: row.token, clientId: row.client_id, subject: row.subject, scope: row.scope, expires: row.expires };
   }
+
+  close(): void {
+    try { this.db.close(); } catch {}
+  }
 }

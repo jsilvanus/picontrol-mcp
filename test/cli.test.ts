@@ -26,7 +26,7 @@ describe('picontrol-mcp-user', () => {
   it('adds, lists, updates, issues a token and removes a user', async () => {
     const add = await cli(['add', 'Pekka', '--role', 'operator', '--display-name', 'Pekka P', '--password-stdin'], 'correct horse battery\n');
     assert.equal(add.code, 0, add.err);
-    assert.equal(statSync(usersPath).mode & 0o777, 0o600);
+    if (process.platform !== 'win32') assert.equal(statSync(usersPath).mode & 0o777, 0o600);
     assert.ok(!readFileSync(usersPath, 'utf8').includes('correct horse battery'));
 
     const list = await cli(['list', '--json']);

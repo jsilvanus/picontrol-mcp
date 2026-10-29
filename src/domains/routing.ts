@@ -74,10 +74,13 @@ export const routing: DomainModule = {
     }),
     defineTool({
       name: 'routing_request_route', title: 'Route a matrix input to an output',
-      description: 'Ask the Atlona matrix (through the AMX controller, which stays the only controller of the matrix) to route one numbered input to one numbered output. ' +
-        'Fails when the matrix is locked. Read pi://routing/matrix first.',
+      description: 'Ask the Atlona matrix (through the AMX controller, which stays the only controller of the matrix) to route one numbered input (1: Lukupulpetti, 2: Räkki/Operator PC, 3: Pi 1, 4: Pi 2) ' +
+        'to one numbered output (1: Videotykki 1 Vasen, 2: Videotykki 2 Oikea, 3: Unused, 4: Unused, 5: Videomikseri). Fails when the matrix is locked. Read pi://routing/matrix first.',
       permission: write, upstream: 'pimatrix', effect: 'live', idempotent: true,
-      input: { input: z.number().int().min(1).describe('Matrix input number.'), output: z.number().int().min(1).describe('Matrix output number.') },
+      input: {
+        input: z.number().int().min(1).max(4).describe('Atlona matrix input number (1: Lukupulpetti, 2: Räkki, 3: Pi 1, 4: Pi 2).'),
+        output: z.number().int().min(1).max(5).describe('Atlona matrix output number (1: Videotykki 1 Vasen, 2: Videotykki 2 Oikea, 3: Unused, 4: Unused, 5: Videomikseri).'),
+      },
       run: async ({ input, output }, ctx) => requireClient(ctx, 'pimatrix').system.requestMatrixRoute({ input, output }),
     }),
     defineTool({

@@ -1,4 +1,4 @@
-export const DOMAINS = ['routing', 'cameras', 'atem', 'program', 'composites', 'voice', 'system'] as const;
+export const DOMAINS = ['routing', 'cameras', 'atem', 'program', 'composites', 'voice', 'youtube', 'tally', 'radio', 'encoder', 'system'] as const;
 export type Domain = (typeof DOMAINS)[number];
 
 export const LEVELS = ['read', 'write', 'admin'] as const;

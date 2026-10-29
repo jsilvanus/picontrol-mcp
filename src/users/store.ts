@@ -64,6 +64,7 @@ export class UserStore {
 
   /** Throws when the file is readable by group or others. Used at server start. */
   assertSecure(): void {
+    if (process.platform === 'win32') return;
     if (!existsSync(this.path)) return;
     const mode = statSync(this.path).mode & 0o777;
     if (mode & 0o077) {

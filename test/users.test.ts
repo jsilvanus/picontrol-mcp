@@ -55,7 +55,7 @@ describe('UserStore', () => {
     const store = new UserStore(join(dir, 'a', 'users.json'));
     const user = await store.create({ name: 'Anna', password: 'correct horse battery', role: 'operator', displayName: 'Anna K' });
     assert.equal(user.name, 'anna');
-    assert.equal(statSync(store.filePath).mode & 0o777, 0o600);
+    if (process.platform !== 'win32') assert.equal(statSync(store.filePath).mode & 0o777, 0o600);
     assert.doesNotThrow(() => store.assertSecure());
     assert.ok(!readFileSync(store.filePath, 'utf8').includes('correct horse'));
     assert.equal(store.principal(user.id)?.role, 'operator');
@@ -74,7 +74,7 @@ describe('UserStore', () => {
     assert.throws(() => store.remove('anna'), /No user/);
   });
 
-  it('refuses a users file that others can read', async () => {
+  it('refuses a users file that others can read', { skip: process.platform === 'win32' }, async () => {
     const store = new UserStore(join(dir, 'b', 'users.json'));
     await store.create({ name: 'carl', password: 'correct horse battery', role: 'admin' });
     chmodSync(store.filePath, 0o644);

@@ -33,7 +33,7 @@ before(async () => {
     if (call.url === '/api/v1/radio') return { body: { targets: [] } };
     return undefined;
   });
-  h = await startHarness({ pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url });
+  h = await startHarness({ pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pilightUrl: 'http://pilight', radioUrl: 'http://radio', encoderUrl: 'http://encoder' });
   for (const [name, role] of [['vera', 'viewer'], ['olli', 'operator'], ['aino', 'admin']] as const) {
     await h.users.create({ name, password: 'correct horse battery', role });
     tokens[name] = h.users.createToken(name, 'test').token;
@@ -153,6 +153,86 @@ describe('tools reach the upstream services', () => {
     const put = pivoice.calls.slice(start).find(call => call.method === 'PUT')!;
     assert.deepEqual(put.body, { captions: { youtube: { mode: 'auto' } } });
     await operator.close();
+  });
+
+  it('youtube tools reach pitube', async () => {
+    let called = false;
+    const fakePitube = await fakeUpstream(call => {
+      if (call.url === '/api/v1/broadcasts/select') {
+        called = true;
+        return { body: { id: (call.body as any).broadcastId, status: 'ready' } };
+      }
+      return undefined;
+    });
+    const local = await startHarness({ pitubeUrl: fakePitube.url });
+    await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
+    const { token } = local.users.createToken('olli', 't');
+    const client = new Client({ name: 't', version: '1' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(local.base + '/mcp'), { requestInit: { headers: { authorization: 'Bearer ' + token } } }));
+    const result = await client.callTool({ name: 'youtube_broadcast_select', arguments: { broadcastId: 'test1234' } });
+    assert.equal(result.isError, undefined);
+    assert.equal(called, true);
+    await client.close(); await local.close(); await fakePitube.close();
+  });
+
+  it('tally tools reach pilight', async () => {
+    let called = false;
+    const fakePilight = await fakeUpstream(call => {
+      if (call.url === '/api/v1/lights/tally01/state') {
+        called = true;
+        return { body: { ok: true } };
+      }
+      return undefined;
+    });
+    const local = await startHarness({ pilightUrl: fakePilight.url });
+    await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
+    const { token } = local.users.createToken('olli', 't');
+    const client = new Client({ name: 't', version: '1' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(local.base + '/mcp'), { requestInit: { headers: { authorization: 'Bearer ' + token } } }));
+    const result = await client.callTool({ name: 'tally_set_state', arguments: { id: 'tally01', mode: 'pgm' } });
+    assert.equal(result.isError, undefined);
+    assert.equal(called, true);
+    await client.close(); await local.close(); await fakePilight.close();
+  });
+
+  it('radio tools reach radio relay', async () => {
+    let called = false;
+    const fakeRadio = await fakeUpstream(call => {
+      if (call.url === '/api/v1/radio-relay/start') {
+        called = true;
+        return { body: { ok: true } };
+      }
+      return undefined;
+    });
+    const local = await startHarness({ radioUrl: fakeRadio.url });
+    await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
+    const { token } = local.users.createToken('olli', 't');
+    const client = new Client({ name: 't', version: '1' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(local.base + '/mcp'), { requestInit: { headers: { authorization: 'Bearer ' + token } } }));
+    const result = await client.callTool({ name: 'radio_start', arguments: {} });
+    assert.equal(result.isError, undefined);
+    assert.equal(called, true);
+    await client.close(); await local.close(); await fakeRadio.close();
+  });
+
+  it('calls encoder tools on the encoder upstream', async () => {
+    let called = false;
+    const fakeEncoder = await fakeUpstream(call => {
+      if (call.url === '/api/v1/encoder/start') {
+        called = true;
+        return { body: { success: true } };
+      }
+      return undefined;
+    });
+    const local = await startHarness({ encoderUrl: fakeEncoder.url });
+    await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
+    const { token } = local.users.createToken('olli', 't');
+    const client = new Client({ name: 't', version: '1' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(local.base + '/mcp'), { requestInit: { headers: { authorization: 'Bearer ' + token } } }));
+    const result = await client.callTool({ name: 'encoder_control', arguments: { action: 'start', encoder: 'both' } });
+    assert.equal(result.isError, undefined);
+    assert.equal(called, true);
+    await client.close(); await local.close(); await fakeEncoder.close();
   });
 
   it('upstream errors come back as readable tool errors without secrets', async () => {

@@ -5,7 +5,7 @@ import { readdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const UPSTREAMS = ['pimatrix', 'pivoice'];
-const generator = join('node_modules', '.bin', 'openapi');
+const generator = join('node_modules', '.bin', process.platform === 'win32' ? 'openapi.cmd' : 'openapi');
 
 async function fixImports(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -27,7 +27,7 @@ async function fixPropertyRefs(directory) {
     if (entry.isDirectory()) { await fixPropertyRefs(path); continue; }
     if (!entry.name.endsWith('.ts')) continue;
     const original = await readFile(path, 'utf8');
-    const updated = original.replace(/^import type \{ (\w+)_properties_(\w+) \} from '[^']+';\n/gm, (_m, schema, property) =>
+    const updated = original.replace(/^import type \{ (\w+)_properties_(\w+) \} from '[^']+';\r?\n/gm, (_m, schema, property) =>
       `import type { ${schema} } from './${schema}.js';\ntype ${schema}_properties_${property} = ${schema}['${property}'];\n`);
     if (updated !== original) await writeFile(path, updated);
   }
@@ -36,7 +36,7 @@ async function fixPropertyRefs(directory) {
 for (const name of UPSTREAMS) {
   const output = join('src', 'generated', name);
   await rm(output, { recursive: true, force: true });
-  execFileSync(generator, ['--input', join('openapi', `${name}.yaml`), '--output', output, '--client', 'fetch', '--name', 'Client'], { stdio: 'inherit' });
+  execFileSync(generator, ['--input', join('openapi', `${name}.yaml`), '--output', output, '--client', 'fetch', '--name', 'Client'], { stdio: 'inherit', shell: process.platform === 'win32' });
   await fixImports(output);
   await fixPropertyRefs(output);
 }

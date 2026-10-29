@@ -8,12 +8,16 @@ import { program } from '../domains/program.js';
 import { routing } from '../domains/routing.js';
 import { system } from '../domains/system.js';
 import { voiceDomain } from '../domains/voice.js';
+import { youtubeDomain } from '../domains/youtube.js';
+import { tallyDomain } from '../domains/tally.js';
+import { radioDomain } from '../domains/radio.js';
+import { encoderDomain } from '../domains/encoder.js';
 import { redact } from '../redact.js';
 import { describeError, type Upstreams } from '../upstream.js';
 import type { Principal } from '../users/store.js';
 import { annotations, canUse, type DomainContext, type DomainModule, type ResourceBody, type ToolDefinition } from './registry.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [system, routing, cameras, atem, program, composites, voiceDomain];
+export const DOMAIN_MODULES: DomainModule[] = [system, routing, cameras, atem, program, composites, voiceDomain, youtubeDomain, tallyDomain, radioDomain, encoderDomain];
 
 export interface McpServerOptions {
   user: Principal;
