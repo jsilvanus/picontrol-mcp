@@ -28,6 +28,18 @@ export const rundownDomain: DomainModule = {
       },
     },
     {
+      name: 'rundown-global-cues',
+      uri: 'pi://rundown/cues/global',
+      title: 'Global Broadcast Cues',
+      description: 'Standing global broadcast cues (e.g. "when communion starts, do privacy blur on camera 1").',
+      permission: viewEvent,
+      upstream: 'pirundown',
+      read: async ctx => {
+        const raw = await requireClient(ctx, 'pirundown').listGlobalCues();
+        return json(defaultPseudonymizer.outbound(raw));
+      },
+    },
+    {
       name: 'rundown-schema-v2',
       uri: 'pi://schema/rundown-v2',
       title: 'Rundown v2 Document JSON Schema',
@@ -140,6 +152,33 @@ export const rundownDomain: DomainModule = {
         const resolved = defaultPseudonymizer.inbound(body);
         return requireClient(ctx, 'pirundown').createOrUpdate(resolved);
       },
+    }),
+    defineTool({
+      name: 'rundown_global_cue_create',
+      title: 'Create Global Broadcast Cue',
+      description: 'Creates a standing global hardware cue in pirundown (e.g. "when communion starts, do privacy blur on camera 1").',
+      permission: operateEvent,
+      upstream: 'pirundown',
+      effect: 'live',
+      input: {
+        prompt: z.string().min(1).describe('Natural language or structured description of the global cue, e.g. "when communion starts, do privacy blur on camera 1"'),
+      },
+      run: async ({ prompt }, ctx) => {
+        const resolved = defaultPseudonymizer.inbound(prompt);
+        return requireClient(ctx, 'pirundown').createGlobalCue({ prompt: resolved });
+      },
+    }),
+    defineTool({
+      name: 'rundown_global_cue_delete',
+      title: 'Delete Global Broadcast Cue',
+      description: 'Removes a global broadcast cue by ID.',
+      permission: operateEvent,
+      upstream: 'pirundown',
+      effect: 'change',
+      input: {
+        id: z.string().min(1).describe('ID of the global cue to remove'),
+      },
+      run: async ({ id }, ctx) => requireClient(ctx, 'pirundown').deleteGlobalCue(id),
     }),
   ],
 };

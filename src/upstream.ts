@@ -127,6 +127,9 @@ export class PirundownClient extends BaseUpstreamClient {
   dispatchAction(action: unknown, dryRun?: boolean) {
     return this.request('/api/v1/actions/dispatch', 'POST', { action, ...(dryRun !== undefined ? { dryRun } : {}) });
   }
+  listGlobalCues() { return this.request('/api/v1/cues/global'); }
+  createGlobalCue(input: unknown) { return this.request('/api/v1/cues/global', 'POST', input); }
+  deleteGlobalCue(id: string) { return this.request(`/api/v1/cues/global/${encodeURIComponent(id)}`, 'DELETE'); }
 }
 
 export class PigraphicsClient extends BaseUpstreamClient {
