@@ -19,6 +19,7 @@ Tools are grouped by task, not one per REST endpoint; state is in `pi://` resour
 | youtube | `youtube_broadcast_list`, `youtube_broadcast_select`, `youtube_broadcast_create`, `youtube_broadcast_start`, `youtube_broadcast_stop`, `youtube_status` | `pi://youtube/status`, `/broadcasts` |
 | tally | `tally_list`, `tally_set_state`, `tally_cue`, `tally_call`, `tally_hold`, `tally_brightness`, `tally_set_segments`, `tally_cycle` | `pi://tally/lights[/{id}]` |
 | radio | `radio_status`, `radio_start`, `radio_stop` | `pi://radio/status` |
+| rundown | `rundown_cue_next`, `rundown_cue_prev`, `rundown_goto`, `rundown_action_exec`, `rundown_create_or_update` | `pi://rundown/current`, `pi://schema/rundown-v2`, `pi://schema/actions`, `pi://help/rundown`, `pi://help/actions` |
 | system | `system_whoami` | `pi://status`, `pi://help/domains` |
 
 Secrets (stream keys, passwords, tokens) are masked in every result and audit entry.
@@ -74,3 +75,13 @@ Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; th
 npm test      # Runs all 38 tests (users, permissions, CLI, OAuth, upstreams)
 npm run build # Generates upstream clients & compiles TypeScript
 ```
+
+---
+
+## Pi Ecosystem Integration & Status Updates
+
+This project is an integral component of the [Pi Production Ecosystem](file:///d:/piecosystem).
+
+> [!IMPORTANT]
+> Any changes to this repository's architectural role, API routes, communication protocols, exposed ports, dependencies, or runtime status **must be documented in the central `piecosystem` coordination repository** (`docs/projects-catalog.md` and `docs/inter-service-matrix.md`).
+> Always verify cross-system health with `npm run status` in `D:\piecosystem`.

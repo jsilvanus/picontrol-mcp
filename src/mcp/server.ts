@@ -75,7 +75,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
   const ctx: DomainContext = { user: options.user, upstreams: options.upstreams, audit: options.audit };
   const server = new McpServer(
     { name: 'picontrol-mcp', version: '0.2.0' },
-    { instructions: 'Controls the Pi video and audio broadcast system. Read pi://help/domains once, read state from pi:// resources, then use the tools. PII is pseudonymized; zero raw images or sound are emitted.' },
+    { instructions: 'Controls the Pi video and audio broadcast system. Read pi://help/domains once, read state from pi:// resources, then use the tools. For rundown cue sheets and action macros, consult pi://help/rundown and pi://schema/rundown-v2. PII is pseudonymized; zero raw images or sound are emitted.' },
   );
 
   for (const module of options.modules ?? DOMAIN_MODULES) {

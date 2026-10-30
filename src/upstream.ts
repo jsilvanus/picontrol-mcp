@@ -124,6 +124,9 @@ export class PirundownClient extends BaseUpstreamClient {
   prevCue() { return this.request('/api/v1/rundown/prev', 'POST'); }
   gotoCue(cueId: string) { return this.request('/api/v1/rundown/goto', 'POST', { cueId }); }
   createOrUpdate(cueSheet: unknown) { return this.request('/api/v1/rundown', 'POST', cueSheet); }
+  dispatchAction(action: unknown, dryRun?: boolean) {
+    return this.request('/api/v1/actions/dispatch', 'POST', { action, ...(dryRun !== undefined ? { dryRun } : {}) });
+  }
 }
 
 export class PigraphicsClient extends BaseUpstreamClient {

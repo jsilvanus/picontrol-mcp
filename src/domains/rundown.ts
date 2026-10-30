@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { defineTool, requireClient, type DomainModule } from '../mcp/registry.js';
 import { defaultPseudonymizer } from '../pseudonymize.js';
 import { json } from './util.js';
+import {
+  RUNDOWN_V2_JSON_SCHEMA,
+  ACTIONS_JSON_SCHEMA,
+  RUNDOWN_GUIDE,
+  ACTIONS_GUIDE,
+} from './rundown-schema.js';
 
 const viewEvent = { domain: 'rundown', level: 'view', scope: 'event' } as const;
 const operateEvent = { domain: 'rundown', level: 'operate', scope: 'event' } as const;
@@ -20,6 +26,42 @@ export const rundownDomain: DomainModule = {
         const raw = await requireClient(ctx, 'pirundown').getCurrent();
         return json(defaultPseudonymizer.outbound(raw));
       },
+    },
+    {
+      name: 'rundown-schema-v2',
+      uri: 'pi://schema/rundown-v2',
+      title: 'Rundown v2 Document JSON Schema',
+      description: 'Complete JSON Schema for Rundown v2 documents (cues, actions, connectors, preflight, AI rules).',
+      permission: viewEvent,
+      upstream: null,
+      read: async () => json(RUNDOWN_V2_JSON_SCHEMA),
+    },
+    {
+      name: 'rundown-schema-actions',
+      uri: 'pi://schema/actions',
+      title: 'Rundown Actions JSON Schema',
+      description: 'JSON Schema for all Rundown v2 action types and string shorthand syntax.',
+      permission: viewEvent,
+      upstream: null,
+      read: async () => json(ACTIONS_JSON_SCHEMA),
+    },
+    {
+      name: 'rundown-help-guide',
+      uri: 'pi://help/rundown',
+      title: 'Rundown v2 Creation and Authoring Guide',
+      description: 'Comprehensive guide to authoring liturgical Rundown v2 documents and configuring cue sheet triggers.',
+      permission: viewEvent,
+      upstream: null,
+      read: async () => ({ text: RUNDOWN_GUIDE, mimeType: 'text/markdown' }),
+    },
+    {
+      name: 'rundown-help-actions',
+      uri: 'pi://help/actions',
+      title: 'Rundown Actions and Macro Reference',
+      description: 'Comprehensive guide to all action item types (cam, atem, tally, pipgm, alternate, var, delay) and shorthand syntax.',
+      permission: viewEvent,
+      upstream: null,
+      read: async () => ({ text: ACTIONS_GUIDE, mimeType: 'text/markdown' }),
     },
   ],
   tools: [
@@ -54,6 +96,25 @@ export const rundownDomain: DomainModule = {
         cueId: z.string().describe('ID of the cue to jump to'),
       },
       run: async ({ cueId }, ctx) => requireClient(ctx, 'pirundown').gotoCue(cueId),
+    }),
+    defineTool({
+      name: 'rundown_action_exec',
+      title: 'Execute or Test Rundown Action',
+      description: 'Dispatches a single rundown action (object or shorthand string, e.g. "cam:1:preset:altar", "atem:cut:2") to the broadcast system, or dry-runs syntax and variable resolution without firing hardware.',
+      permission: operateEvent,
+      upstream: 'pirundown',
+      effect: 'live',
+      input: {
+        action: z.union([
+          z.record(z.string(), z.unknown()),
+          z.string(),
+        ]).describe('The action object (e.g. { cam: { id: 1, preset: "altar" } }) or shorthand string (e.g. "cam:1:preset:altar")'),
+        dryRun: z.boolean().optional().describe('If true, validates syntax without firing hardware'),
+      },
+      run: async ({ action, dryRun }, ctx) => {
+        const resolved = defaultPseudonymizer.inbound(action);
+        return requireClient(ctx, 'pirundown').dispatchAction(resolved, dryRun);
+      },
     }),
     defineTool({
       name: 'rundown_create_or_update',

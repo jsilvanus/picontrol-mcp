@@ -42,6 +42,11 @@ before(async () => {
         },
       };
     }
+    if (call.url === '/api/v1/actions/dispatch') {
+      return {
+        body: { ok: true, result: { action: (call.body as { action: unknown })?.action, ok: true } },
+      };
+    }
     return undefined;
   });
 
@@ -197,6 +202,72 @@ describe('Roles, Scopes, and Privacy Isolation', () => {
     assert.equal(body.title, 'Kari Salonen');
     assert.equal(body.subtitle, 'Kirkkoherra');
 
+    await client.close();
+  });
+
+  it('view role can read rundown schemas and help documentation', async () => {
+    const client = await connect(tokens['observer']!);
+
+    const schemaRes = await client.readResource({ uri: 'pi://schema/rundown-v2' });
+    const schema = JSON.parse(schemaRes.contents[0]!.text as string);
+    assert.equal(schema.title, 'RundownV2');
+    assert.equal(schema.properties.version.const, 2);
+
+    const actionSchemaRes = await client.readResource({ uri: 'pi://schema/actions' });
+    const actionSchema = JSON.parse(actionSchemaRes.contents[0]!.text as string);
+    assert.equal(actionSchema.title, 'RundownActionItem');
+
+    const helpRes = await client.readResource({ uri: 'pi://help/rundown' });
+    assert.ok((helpRes.contents[0]!.text as string).includes('Rundown v2 Authoring Guide'));
+
+    const actionHelpRes = await client.readResource({ uri: 'pi://help/actions' });
+    assert.ok((actionHelpRes.contents[0]!.text as string).includes('Rundown Actions and Macro Reference'));
+
+    await client.close();
+  });
+
+  it('church-only operator cannot access event-scoped rundown schemas or tools', async () => {
+    const client = await connect(tokens['church-operator']!);
+    const resources = (await client.listResources()).resources.map(r => r.uri);
+    assert.ok(!resources.includes('pi://schema/rundown-v2'));
+    assert.ok(!resources.includes('pi://help/rundown'));
+
+    const tools = (await client.listTools()).tools.map(t => t.name);
+    assert.ok(!tools.includes('rundown_action_exec'));
+    await client.close();
+  });
+
+  it('stream operator can dispatch actions via rundown_action_exec with pseudonym translation', async () => {
+    const client = await connect(tokens['ai-stream-director']!);
+
+    const result = await client.callTool({
+      name: 'rundown_action_exec',
+      arguments: {
+        action: { cam: { id: 1, preset: 'Celebrant / Liturgi' } },
+        dryRun: false,
+      },
+    });
+
+    assert.equal(result.isError, undefined);
+    const lastCall = pirundown.calls.at(-1);
+    assert.ok(lastCall);
+    assert.equal(lastCall.method, 'POST');
+    assert.equal(lastCall.url, '/api/v1/actions/dispatch');
+    const body = lastCall.body as { action: { cam: { id: number; preset: string } }; dryRun: boolean };
+    // Two-way pseudonymizer translated role back to local name
+    assert.equal(body.action.cam.preset, 'Kari Salonen');
+    assert.equal(body.dryRun, false);
+
+    await client.close();
+  });
+
+  it('view role is refused when calling rundown_action_exec', async () => {
+    const client = await connect(tokens['observer']!);
+    const result = await client.callTool({
+      name: 'rundown_action_exec',
+      arguments: { action: 'cam:1:preset:altar' },
+    });
+    assert.equal(result.isError, true);
     await client.close();
   });
 });

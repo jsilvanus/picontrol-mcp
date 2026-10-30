@@ -13,6 +13,7 @@ This server controls the church's Pi video and audio system. Read state from the
 - **tally**: Tally-Ma wireless tally lights & director cues (pilight): tally_list, tally_set_state (PGM/PRV/OFF), tally_cue (pan/zoom cues), tally_call, tally_hold, tally_brightness, tally_set_segments, tally_cycle.
 - **radio**: Web radio relay streaming: radio_status, radio_start, radio_stop.
 - **encoder**: Matrox Monarch HDX hardware encoder: encoder_status, encoder_control (start/stop encoder 1 or 2), encoder_input_status.
+- **rundown**: Worship cue sheets and automated liturgy progression (pirundown): rundown_cue_next, rundown_cue_prev, rundown_goto, rundown_create_or_update, and rundown_action_exec. Read pi://help/rundown, pi://help/actions, pi://schema/rundown-v2, and pi://schema/actions.
 
 ## Safety during a service
 - Tools marked destructive can change what the congregation sees or hears at once. Confirm with the user before using them unless they just asked for exactly that.
