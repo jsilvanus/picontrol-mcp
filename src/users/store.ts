@@ -21,6 +21,7 @@ export interface UserRecord {
   role: string;
   extraGrants: PermissionText[];
   extraDenies: PermissionText[];
+  scopes?: string[];
   disabled: boolean;
   createdAt: string;
   tokens: TokenRecord[];
@@ -38,6 +39,7 @@ export interface Principal {
   displayName: string;
   role: string;
   rights: EffectiveRights;
+  scopes: string[];
   /** Set when the caller used a personal access token. */
   tokenLabel?: string;
 }
@@ -49,64 +51,61 @@ export const hashToken = (token: string) => createHash('sha256').update(token).d
 
 export class UserError extends Error {}
 
-/**
- * Users live in one JSON file with mode 0600. The server re-reads it when the file changes, so edits made with the
- * CLI apply on the next request: a removed or disabled user loses access immediately.
- */
 export class UserStore {
-  private cache: { stamp: string; file: UsersFile } | undefined;
-
-  constructor(private readonly path: string) {}
-
-  get filePath(): string {
-    return this.path;
-  }
-
-  /** Throws when the file is readable by group or others. Used at server start. */
-  assertSecure(): void {
-    if (process.platform === 'win32') return;
-    if (!existsSync(this.path)) return;
-    const mode = statSync(this.path).mode & 0o777;
-    if (mode & 0o077) {
-      throw new Error(`${this.path} has mode ${mode.toString(8)}; it holds password hashes and must be 0600 (chmod 600).`);
+  constructor(readonly filePath: string) {
+    if (!existsSync(filePath)) {
+      mkdirSync(dirname(filePath), { recursive: true });
+      const initial: UsersFile = { version: 1, users: [] };
+      writeFileSync(filePath, JSON.stringify(initial, null, 2) + '\n', { mode: 0o600 });
     }
   }
 
-  private read(): UsersFile {
-    if (!existsSync(this.path)) return { version: 1, users: [] };
-    const stat = statSync(this.path);
-    const stamp = `${stat.mtimeMs}:${stat.size}`;
-    if (this.cache?.stamp === stamp) return this.cache.file;
-    const parsed = JSON.parse(readFileSync(this.path, 'utf8')) as UsersFile;
-    if (parsed.version !== 1 || !Array.isArray(parsed.users)) throw new Error(`${this.path}: unsupported users file`);
-    this.cache = { stamp, file: parsed };
-    return parsed;
+  assertSecure(): void {
+    if (process.platform === 'win32') return;
+    try {
+      const mode = statSync(this.filePath).mode;
+      if ((mode & 0o077) !== 0) {
+        throw new UserError(`Users file ${this.filePath} is readable by others (mode ${(mode & 0o777).toString(8)}). Set mode 0600.`);
+      }
+    } catch (error) {
+      if (error instanceof UserError) throw error;
+    }
   }
 
-  private write(file: UsersFile): void {
-    mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-    const temp = `${this.path}.${process.pid}.tmp`;
-    writeFileSync(temp, JSON.stringify(file, null, 2) + '\n', { mode: 0o600 });
-    chmodSync(temp, 0o600);
-    renameSync(temp, this.path);
-    this.cache = undefined;
+  read(): UsersFile {
+    try {
+      const text = readFileSync(this.filePath, 'utf8');
+      const data = JSON.parse(text) as UsersFile;
+      if (data.version !== 1 || !Array.isArray(data.users)) throw new Error('invalid schema');
+      return data;
+    } catch (error) {
+      throw new UserError(`Cannot read users file ${this.filePath}: ${(error as Error).message}`);
+    }
   }
 
-  roles(): Record<string, PermissionText[]> {
-    return { ...BUILT_IN_ROLES, ...(this.read().roles ?? {}) };
+  private write(data: UsersFile): void {
+    const tmp = `${this.filePath}.${randomBytes(4).toString('hex')}.tmp`;
+    writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+    try { chmodSync(tmp, 0o600); } catch {}
+    renameSync(tmp, this.filePath);
+    try { chmodSync(this.filePath, 0o600); } catch {}
   }
 
   list(): UserRecord[] {
     return this.read().users;
   }
 
+  getByName(name: string): UserRecord | undefined {
+    const needle = name.trim().toLowerCase();
+    return this.read().users.find(user => user.name.toLowerCase() === needle);
+  }
+
   getById(id: string): UserRecord | undefined {
     return this.read().users.find(user => user.id === id);
   }
 
-  getByName(name: string): UserRecord | undefined {
-    const wanted = name.trim().toLowerCase();
-    return this.read().users.find(user => user.name === wanted);
+  roles(): Record<string, PermissionText[]> {
+    return { ...BUILT_IN_ROLES, ...(this.read().roles ?? {}) };
   }
 
   /** The caller as the MCP layer sees it, or undefined for an unknown or disabled user. */
@@ -119,6 +118,7 @@ export class UserStore {
       displayName: user.displayName,
       role: user.role,
       rights: effectiveRights(user, this.roles()),
+      scopes: user.scopes && user.scopes.length > 0 ? user.scopes : ['*'],
       ...(tokenLabel ? { tokenLabel } : {}),
     };
   }
@@ -143,7 +143,7 @@ export class UserStore {
     }
   }
 
-  async create(input: { name: string; displayName?: string; password: string; role: string }): Promise<UserRecord> {
+  async create(input: { name: string; displayName?: string; password: string; role: string; scopes?: string[] }): Promise<UserRecord> {
     const name = input.name.trim().toLowerCase();
     if (!NAME_PATTERN.test(name)) throw new UserError('User name: 2-32 characters, a-z, 0-9, dot, dash, underscore; must start with a letter or digit.');
     if (this.getByName(name)) throw new UserError(`User "${name}" already exists.`);
@@ -158,6 +158,7 @@ export class UserStore {
       role: input.role,
       extraGrants: [],
       extraDenies: [],
+      scopes: input.scopes ?? ['*'],
       disabled: false,
       createdAt: new Date().toISOString(),
       tokens: [],
@@ -168,7 +169,7 @@ export class UserStore {
   }
 
   async update(name: string, patch: {
-    displayName?: string; password?: string; role?: string; disabled?: boolean;
+    displayName?: string; password?: string; role?: string; disabled?: boolean; scopes?: string[];
     grant?: PermissionText[]; deny?: PermissionText[]; ungrant?: PermissionText[]; undeny?: PermissionText[];
   }): Promise<UserRecord> {
     const file = this.read();
@@ -183,6 +184,7 @@ export class UserStore {
     }
     if (patch.role !== undefined) next.role = patch.role;
     if (patch.disabled !== undefined) next.disabled = patch.disabled;
+    if (patch.scopes !== undefined) next.scopes = patch.scopes;
     const merge = (base: string[], add: string[] = [], remove: string[] = []) => [...new Set([...base, ...add])].filter(item => !remove.includes(item));
     next.extraGrants = merge(current.extraGrants, patch.grant, patch.ungrant);
     next.extraDenies = merge(current.extraDenies, patch.deny, patch.undeny);
@@ -224,5 +226,6 @@ export class UserStore {
     if (!current.tokens.some(token => token.id === tokenId)) throw new UserError(`No token "${tokenId}" for ${name}.`);
     const next = { ...current, tokens: current.tokens.filter(token => token.id !== tokenId) };
     this.write({ ...file, users: file.users.map(user => (user.id === current.id ? next : user)) });
+    return;
   }
 }

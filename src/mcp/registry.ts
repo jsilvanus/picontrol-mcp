@@ -72,7 +72,7 @@ export interface DomainModule {
 /** Both checks use the same rule, so a hidden tool is also refused when called directly. */
 export function canUse(ctx: DomainContext, item: { permission: Permission; upstream: UpstreamName | null }): boolean {
   if (item.upstream && !ctx.upstreams[item.upstream]) return false;
-  return allows(ctx.user.rights, item.permission);
+  return allows(ctx.user.rights, item.permission, ctx.user.scopes);
 }
 
 export function requireClient<K extends UpstreamName>(ctx: DomainContext, name: K): NonNullable<Upstreams[K]> {

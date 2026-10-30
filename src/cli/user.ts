@@ -4,14 +4,14 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
-import { effectiveRights, describeRights } from '../users/permissions.js';
+import { effectiveRights, describeRights, DOMAINS, SCOPES } from '../users/permissions.js';
 import { UserError, UserStore, type UserRecord } from '../users/store.js';
 
 const USAGE = `picontrol-mcp-user: manage who may use the Pi MCP server
 
-  add <name> --role <role> [--display-name <text>] [--password-stdin]
+  add <name> --role <role> [--scope <scope>] [--display-name <text>] [--password-stdin]
   remove <name>
-  update <name> [--role <role>] [--display-name <text>] [--password] [--password-stdin]
+  update <name> [--role <role>] [--scope <scope>] [--display-name <text>] [--password] [--password-stdin]
                [--disable | --enable] [--grant <domain:level>] [--deny <domain:level>]
                [--ungrant <domain:level>] [--undeny <domain:level>]
   list [--json]
@@ -24,8 +24,10 @@ const USAGE = `picontrol-mcp-user: manage who may use the Pi MCP server
 
 Passwords are read from the terminal (hidden) or, with --password-stdin, from one line of standard input.
 They are never accepted as an argument. Users file: $USERS_PATH or ~/.config/picontrol-mcp/users.json.
-Permissions are domain:level, for example program:write; domains: routing cameras atem program composites voice system (or *);
-levels: read < write < admin. Roles: viewer (read), operator (write), admin.`;
+Permissions are domain:level (or *). Domains: ${DOMAINS.join(' ')}.
+Levels: view < config < operate < setup < admin (aliases: read -> view, write -> operate).
+Roles: view (read-only), config (event setup), operate (live show), setup (hardware setup), admin.
+Scopes: ${SCOPES.join(', ')} (default: * for all scopes).`;
 
 const usersPath = () => process.env.USERS_PATH ?? join(process.env.PICONTROL_MCP_CONFIG_DIR ?? join(homedir(), '.config', 'picontrol-mcp'), 'users.json');
 
@@ -56,6 +58,7 @@ async function password(fromStdin: boolean, confirm: boolean): Promise<string> {
 function summary(user: UserRecord, store: UserStore) {
   return {
     name: user.name, displayName: user.displayName, role: user.role, disabled: user.disabled,
+    scopes: user.scopes ?? ['*'],
     grants: user.extraGrants, denies: user.extraDenies, tokens: user.tokens.length,
     permissions: describeRights(effectiveRights(user, store.roles())),
   };
@@ -69,6 +72,7 @@ async function main(argv: string[]): Promise<void> {
     disable: { type: 'boolean' }, enable: { type: 'boolean' }, json: { type: 'boolean' }, label: { type: 'string' }, days: { type: 'string' },
     grant: { type: 'string', multiple: true }, deny: { type: 'string', multiple: true },
     ungrant: { type: 'string', multiple: true }, undeny: { type: 'string', multiple: true },
+    scope: { type: 'string', multiple: true },
   } as const;
   const { values, positionals } = parseArgs({ args: rest, options, allowPositionals: true });
 
@@ -76,7 +80,13 @@ async function main(argv: string[]): Promise<void> {
     case 'add': {
       const [name] = positionals;
       if (!name || !values.role) throw new UserError('Usage: add <name> --role <role>');
-      const user = await store.create({ name, role: values.role, password: await password(Boolean(values['password-stdin']), true), ...(values['display-name'] ? { displayName: values['display-name'] } : {}) });
+      const user = await store.create({
+        name,
+        role: values.role,
+        password: await password(Boolean(values['password-stdin']), true),
+        ...(values.scope ? { scopes: values.scope } : {}),
+        ...(values['display-name'] ? { displayName: values['display-name'] } : {}),
+      });
       console.log(`Added ${user.name} (${user.role}).`);
       return;
     }
@@ -96,6 +106,7 @@ async function main(argv: string[]): Promise<void> {
         ...(values['display-name'] !== undefined ? { displayName: values['display-name'] } : {}),
         ...(wantsPassword ? { password: await password(Boolean(values['password-stdin']), true) } : {}),
         ...(values.disable ? { disabled: true } : values.enable ? { disabled: false } : {}),
+        ...(values.scope ? { scopes: values.scope } : {}),
         ...(values.grant ? { grant: values.grant } : {}), ...(values.deny ? { deny: values.deny } : {}),
         ...(values.ungrant ? { ungrant: values.ungrant } : {}), ...(values.undeny ? { undeny: values.undeny } : {}),
       });
@@ -129,32 +140,33 @@ async function main(argv: string[]): Promise<void> {
       if (action === 'list') {
         const user = store.getByName(name);
         if (!user) throw new UserError(`No user "${name}".`);
-        for (const token of user.tokens) console.log(`${token.id}  ${token.label}  created ${token.createdAt}  expires ${token.expires ?? 'never'}`);
-        if (user.tokens.length === 0) console.log('No tokens.');
+        if (user.tokens.length === 0) { console.log('No tokens.'); return; }
+        for (const t of user.tokens) console.log(`${t.id}  ${t.label.padEnd(24)} created ${t.createdAt.slice(0, 10)}  expires ${t.expires ? t.expires.slice(0, 10) : 'never'}`);
         return;
       }
       if (action === 'revoke') {
         if (!tokenId) throw new UserError('Usage: token revoke <name> <token-id>');
         store.revokeToken(name, tokenId);
-        console.log(`Revoked ${tokenId}.`);
+        console.log(`Revoked ${tokenId} for ${name}.`);
         return;
       }
-      throw new UserError(`Unknown token command "${action}".`);
+      throw new UserError(`Unknown token action "${action}" (known: create, list, revoke)`);
     }
     case 'roles': {
-      for (const [role, grants] of Object.entries(store.roles())) console.log(`${role.padEnd(12)} ${grants.join(', ')}`);
+      console.log(JSON.stringify(store.roles(), null, 2));
       return;
     }
-    case 'secret':
-      console.log(randomBytes(48).toString('base64'));
+    case 'secret': {
+      console.log(randomBytes(32).toString('base64'));
       return;
+    }
     default:
       console.log(USAGE);
-      if (command && command !== 'help' && command !== '--help') process.exitCode = 2;
   }
 }
 
 main(process.argv.slice(2)).catch(error => {
-  console.error(error instanceof UserError ? error.message : error);
-  process.exitCode = 1;
+  if (error instanceof UserError) { console.error(`Error: ${error.message}`); process.exit(1); }
+  console.error(error);
+  process.exit(1);
 });

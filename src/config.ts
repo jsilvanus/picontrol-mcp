@@ -24,6 +24,12 @@ export interface Config {
   pilight?: UpstreamConfig;
   radio?: UpstreamConfig;
   encoder?: UpstreamConfig;
+  pigateway?: UpstreamConfig;
+  pispace?: UpstreamConfig;
+  piperception?: UpstreamConfig;
+  pisound?: UpstreamConfig;
+  pirundown?: UpstreamConfig;
+  pigraphics?: UpstreamConfig;
 }
 
 type Env = Record<string, string | undefined>;
@@ -65,6 +71,12 @@ export function loadConfig(env: Env = process.env): Config {
   const pilight = upstream(env, 'PILIGHT_URL', 'PILIGHT_API_KEY', 'http://127.0.0.1:3200');
   const radio = upstream(env, 'RADIO_URL', 'RADIO_API_TOKEN', 'http://127.0.0.1:3100');
   const encoder = upstream(env, 'ENCODER_URL', 'ENCODER_API_KEY', env.PIMATRIX_URL ?? 'http://127.0.0.1:3000');
+  const pigateway = upstream(env, 'PIGATEWAY_URL', 'PIGATEWAY_API_KEY', 'http://127.0.0.1:3100');
+  const pispace = upstream(env, 'PISPACE_URL', 'PISPACE_API_KEY', 'http://127.0.0.1:3108');
+  const piperception = upstream(env, 'PIPERCEPTION_URL', 'PIPERCEPTION_API_KEY', 'http://127.0.0.1:3110');
+  const pisound = upstream(env, 'PISOUND_URL', 'PISOUND_API_KEY', 'http://127.0.0.1:3300');
+  const pirundown = upstream(env, 'PIRUNDOWN_URL', 'PIRUNDOWN_API_KEY', 'http://127.0.0.1:3400');
+  const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3107');
 
   return {
     host, port, publicUrl, jwtSecret, authMode, allowedHosts,
@@ -77,5 +89,11 @@ export function loadConfig(env: Env = process.env): Config {
     ...(pilight ? { pilight } : {}),
     ...(radio ? { radio } : {}),
     ...(encoder ? { encoder } : {}),
+    ...(pigateway ? { pigateway } : {}),
+    ...(pispace ? { pispace } : {}),
+    ...(piperception ? { piperception } : {}),
+    ...(pisound ? { pisound } : {}),
+    ...(pirundown ? { pirundown } : {}),
+    ...(pigraphics ? { pigraphics } : {}),
   };
 }

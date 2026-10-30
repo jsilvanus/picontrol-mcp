@@ -12,12 +12,37 @@ import { youtubeDomain } from '../domains/youtube.js';
 import { tallyDomain } from '../domains/tally.js';
 import { radioDomain } from '../domains/radio.js';
 import { encoderDomain } from '../domains/encoder.js';
+import { worldDomain } from '../domains/world.js';
+import { spaceDomain } from '../domains/space.js';
+import { perceptionDomain } from '../domains/perception.js';
+import { soundDomain } from '../domains/sound.js';
+import { rundownDomain } from '../domains/rundown.js';
+import { graphicsDomain } from '../domains/graphics.js';
+import { defaultPseudonymizer } from '../pseudonymize.js';
 import { redact } from '../redact.js';
 import { describeError, type Upstreams } from '../upstream.js';
 import type { Principal } from '../users/store.js';
 import { annotations, canUse, type DomainContext, type DomainModule, type ResourceBody, type ToolDefinition } from './registry.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [system, routing, cameras, atem, program, composites, voiceDomain, youtubeDomain, tallyDomain, radioDomain, encoderDomain];
+export const DOMAIN_MODULES: DomainModule[] = [
+  system,
+  routing,
+  cameras,
+  atem,
+  program,
+  composites,
+  voiceDomain,
+  youtubeDomain,
+  tallyDomain,
+  radioDomain,
+  encoderDomain,
+  worldDomain,
+  spaceDomain,
+  perceptionDomain,
+  soundDomain,
+  rundownDomain,
+  graphicsDomain,
+];
 
 export interface McpServerOptions {
   user: Principal;
@@ -37,8 +62,9 @@ function errorResult(message: string): CallToolResult {
 
 async function readBody(body: ResourceBody, uri: URL): Promise<ReadResourceResult['contents'][number]> {
   if ('json' in body) return { uri: uri.href, mimeType: 'application/json', text: JSON.stringify(redact(body.json), null, 2) };
-  if ('text' in body) return { uri: uri.href, mimeType: body.mimeType, text: body.text };
-  return { uri: uri.href, mimeType: body.mimeType, blob: body.blob.toString('base64') };
+  if ('text' in body) return { uri: uri.href, mimeType: body.mimeType, text: redact(body.text) as string };
+  // Zero image/sound policy: binary payloads are strictly suppressed
+  return { uri: uri.href, mimeType: 'text/plain', text: '[Binary media payload suppressed: zero image/sound to cloud]' };
 }
 
 /**
@@ -48,8 +74,8 @@ async function readBody(body: ResourceBody, uri: URL): Promise<ReadResourceResul
 export function createMcpServer(options: McpServerOptions): McpServer {
   const ctx: DomainContext = { user: options.user, upstreams: options.upstreams, audit: options.audit };
   const server = new McpServer(
-    { name: 'picontrol-mcp', version: '0.1.0' },
-    { instructions: 'Controls the Pi video and audio system of the church. Read pi://help/domains once, read state from pi:// resources, then use the tools. Tools marked destructive change what is on air.' },
+    { name: 'picontrol-mcp', version: '0.2.0' },
+    { instructions: 'Controls the Pi video and audio broadcast system. Read pi://help/domains once, read state from pi:// resources, then use the tools. PII is pseudonymized; zero raw images or sound are emitted.' },
   );
 
   for (const module of options.modules ?? DOMAIN_MODULES) {
@@ -91,7 +117,9 @@ function registerTool(server: McpServer, tool: ToolDefinition, ctx: DomainContex
         return errorResult('You are not allowed to use this tool.');
       }
       try {
-        const result = await tool.run(args, ctx);
+        // Inbound two-way pseudonymization: restores real names for downstream execution
+        const resolvedArgs = defaultPseudonymizer.inbound(args) as Record<string, unknown>;
+        const result = await tool.run(resolvedArgs, ctx);
         ctx.audit.write({ event: 'tool', user: who, tool: tool.name, args: redact(args), ok: true, ms: Date.now() - started, ...(ctx.user.tokenLabel ? { token: ctx.user.tokenLabel } : {}) });
         return toolResult(result);
       } catch (error) {

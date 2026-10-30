@@ -33,7 +33,10 @@ before(async () => {
     if (call.url === '/api/v1/radio') return { body: { targets: [] } };
     return undefined;
   });
-  h = await startHarness({ pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pilightUrl: 'http://pilight', radioUrl: 'http://radio', encoderUrl: 'http://encoder' });
+  h = await startHarness({
+    pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pilightUrl: 'http://pilight', radioUrl: 'http://radio', encoderUrl: 'http://encoder',
+    pigatewayUrl: 'http://pigateway', pispaceUrl: 'http://pispace', piperceptionUrl: 'http://piperception', pisoundUrl: 'http://pisound', pirundownUrl: 'http://pirundown', pigraphicsUrl: 'http://pigraphics',
+  });
   for (const [name, role] of [['vera', 'viewer'], ['olli', 'operator'], ['aino', 'admin']] as const) {
     await h.users.create({ name, password: 'correct horse battery', role });
     tokens[name] = h.users.createToken(name, 'test').token;

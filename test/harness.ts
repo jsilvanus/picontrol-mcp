@@ -45,6 +45,7 @@ export interface Harness {
 
 export async function startHarness(options: {
   pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pilightUrl?: string; radioUrl?: string; encoderUrl?: string;
+  pigatewayUrl?: string; pispaceUrl?: string; piperceptionUrl?: string; pisoundUrl?: string; pirundownUrl?: string; pigraphicsUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
 } = {}): Promise<Harness> {
@@ -67,6 +68,12 @@ export async function startHarness(options: {
       ...(options.pilightUrl ? { pilight: { url: options.pilightUrl, secret: 'pilight-secret-key' } } : {}),
       ...(options.radioUrl ? { radio: { url: options.radioUrl, secret: 'radio-secret-token' } } : {}),
       ...(options.encoderUrl ? { encoder: { url: options.encoderUrl, secret: 'encoder-secret-token' } } : {}),
+      ...(options.pigatewayUrl ? { pigateway: { url: options.pigatewayUrl, secret: 'pigateway-key' } } : {}),
+      ...(options.pispaceUrl ? { pispace: { url: options.pispaceUrl, secret: 'pispace-key' } } : {}),
+      ...(options.piperceptionUrl ? { piperception: { url: options.piperceptionUrl, secret: 'piperception-key' } } : {}),
+      ...(options.pisoundUrl ? { pisound: { url: options.pisoundUrl, secret: 'pisound-key' } } : {}),
+      ...(options.pirundownUrl ? { pirundown: { url: options.pirundownUrl, secret: 'pirundown-key' } } : {}),
+      ...(options.pigraphicsUrl ? { pigraphics: { url: options.pigraphicsUrl, secret: 'pigraphics-key' } } : {}),
     }),
     audit: new AuditLog(auditPath),
     logger: false,
