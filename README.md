@@ -1,6 +1,6 @@
 # picontrol-mcp
 
-MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pilight`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3200).
+MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pilight`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3600).
 
 ---
 
@@ -62,7 +62,7 @@ Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; th
 ## Signing in
 
 `AUTH_MODE=both` (default):
-- **Personal access token** (`pcm_...`): `Authorization: Bearer ...`. Works over plain http on the LAN. For Claude Code, MCP Inspector, scripts: `claude mcp add --transport http pi http://kirkonpi.local:3200/mcp --header "Authorization: Bearer pcm_..."`.
+- **Personal access token** (`pcm_...`): `Authorization: Bearer ...`. Works over plain http on the LAN. For Claude Code, MCP Inspector, scripts: `claude mcp add --transport http pi http://kirkonpi.local:3600/mcp --header "Authorization: Bearer pcm_..."`.
 - **OAuth**: authorization code + PKCE S256, CIMD client ids, user name + password sign-in, consent page, refresh tokens. Put a TLS proxy in front for public access.
 
 `AUTH_MODE=token` turns the OAuth endpoints off.
