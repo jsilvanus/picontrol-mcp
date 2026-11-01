@@ -178,6 +178,27 @@ describe('tools reach the upstream services', () => {
     await client.close(); await local.close(); await fakePitube.close();
   });
 
+  for (const hasRequestRoute of [true, false]) {
+    it(`youtube_broadcast_stop asks pitube for a confirmToken first (${hasRequestRoute ? 'new' : 'old'} pitube)`, async () => {
+      const fakePitube = await fakeUpstream(call => {
+        if (call.url === '/api/v1/broadcasts/stop/request') {
+          return hasRequestRoute ? { body: { confirmToken: 'tok123' } } : { status: 404, body: { error: 'Not Found' } };
+        }
+        return { body: { id: 'bc1', status: 'complete' } };
+      });
+      const local = await startHarness({ pitubeUrl: fakePitube.url });
+      await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
+      const { token } = local.users.createToken('olli', 't');
+      const client = new Client({ name: 't', version: '1' });
+      await client.connect(new StreamableHTTPClientTransport(new URL(local.base + '/mcp'), { requestInit: { headers: { authorization: 'Bearer ' + token } } }));
+      const result = await client.callTool({ name: 'youtube_broadcast_stop', arguments: {} });
+      assert.equal(result.isError, undefined);
+      const stop = fakePitube.calls.find(call => call.url === '/api/v1/broadcasts/stop')!;
+      assert.deepEqual(stop.body, hasRequestRoute ? { confirmToken: 'tok123' } : undefined);
+      await client.close(); await local.close(); await fakePitube.close();
+    });
+  }
+
   it('tally tools reach pilight', async () => {
     let called = false;
     const fakePilight = await fakeUpstream(call => {
