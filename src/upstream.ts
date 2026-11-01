@@ -35,7 +35,19 @@ export class PitubeClient extends BaseUpstreamClient {
     return this.request('/api/v1/broadcasts/create', 'POST', input);
   }
   startBroadcast() { return this.request('/api/v1/broadcasts/start', 'POST'); }
-  stopBroadcast() { return this.request('/api/v1/broadcasts/stop', 'POST'); }
+  /**
+   * Two steps: pitube hands out a short-lived confirmToken (POST /broadcasts/stop/request)
+   * that the stop call carries. An older pitube without the request route is stopped the old way.
+   */
+  async stopBroadcast() {
+    let confirmToken: string | undefined;
+    try {
+      confirmToken = (await this.request<{ confirmToken?: string }>('/api/v1/broadcasts/stop/request', 'POST')).confirmToken;
+    } catch (err) {
+      if ((err as { status?: number }).status !== 404) throw err;
+    }
+    return this.request('/api/v1/broadcasts/stop', 'POST', confirmToken ? { confirmToken } : undefined);
+  }
 }
 
 export class PilightClient extends BaseUpstreamClient {
