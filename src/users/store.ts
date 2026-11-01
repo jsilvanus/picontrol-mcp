@@ -65,7 +65,7 @@ export class UserStore {
     try {
       const mode = statSync(this.filePath).mode;
       if ((mode & 0o077) !== 0) {
-        throw new UserError(`Users file ${this.filePath} is readable by others (mode ${(mode & 0o777).toString(8)}). Set mode 0600.`);
+        throw new UserError(`Users file ${this.filePath} is readable by others (mode ${(mode & 0o777).toString(8)}); it must be 0600.`);
       }
     } catch (error) {
       if (error instanceof UserError) throw error;
