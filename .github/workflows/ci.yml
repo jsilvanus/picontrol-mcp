@@ -9,16 +9,17 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run generate && npm run typecheck
-      - run: npm test
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run generate && pnpm run typecheck
+      - run: pnpm test
+      - run: pnpm run build
   spec-drift:
-    # Fails when the vendored specs differ from the upstream main branches. Informational: run `npm run spec:sync`.
+    # Fails when the vendored specs differ from the upstream main branches. Informational: run `pnpm run spec:sync`.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     continue-on-error: true

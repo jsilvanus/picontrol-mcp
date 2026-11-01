@@ -1,6 +1,7 @@
 {
   "name": "picontrol-mcp",
   "version": "0.1.0",
+  "packageManager": "pnpm@11.23.0",
   "private": true,
   "type": "module",
   "description": "MCP server for the Pi stack: routing, cameras, ATEM, program, composites and voice, over Streamable HTTP.",
@@ -35,5 +36,12 @@
     "openapi-typescript-codegen": "^0.29.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "pi": {
+    "service": "picontrol-mcp",
+    "displayName": "picontrol MCP server",
+    "port": 3200,
+    "healthEndpoint": "/health",
+    "envPortVar": "PORT"
   }
 }

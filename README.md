@@ -43,16 +43,16 @@ A user can have extra grants and denies (`--grant program:write`, `--deny atem:w
 ## Users (CLI)
 
 ```sh
-npm run build
-npm run user -- add anna --role operator          # password asked twice, hidden; or --password-stdin
-npm run user -- update anna --role viewer --grant program:write --disable
-npm run user -- list
-npm run user -- show anna
-npm run user -- remove anna
-npm run user -- token create anna --label claude-code --days 90   # printed once
-npm run user -- token list anna | token revoke anna <id>
-npm run user -- roles
-npm run user -- secret                            # new JWT_SECRET
+pnpm run build
+pnpm run user add anna --role operator          # password asked twice, hidden; or --password-stdin
+pnpm run user update anna --role viewer --grant program:write --disable
+pnpm run user list
+pnpm run user show anna
+pnpm run user remove anna
+pnpm run user token create anna --label claude-code --days 90   # printed once
+pnpm run user token list anna | token revoke anna <id>
+pnpm run user roles
+pnpm run user secret                            # new JWT_SECRET
 ```
 
 Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; the server refuses to start if group or others can read it. Passwords: scrypt (N=32768), at least 12 characters, never accepted as an argument. Tokens: stored as SHA-256 only.
@@ -72,8 +72,8 @@ Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; th
 ## Testing & Build
 
 ```sh
-npm test      # Runs all 38 tests (users, permissions, CLI, OAuth, upstreams)
-npm run build # Generates upstream clients & compiles TypeScript
+pnpm test      # Runs all 38 tests (users, permissions, CLI, OAuth, upstreams)
+pnpm run build # Generates upstream clients & compiles TypeScript
 ```
 
 ---
@@ -84,4 +84,4 @@ This project is an integral component of the [Pi Production Ecosystem](file:///d
 
 > [!IMPORTANT]
 > Any changes to this repository's architectural role, API routes, communication protocols, exposed ports, dependencies, or runtime status **must be documented in the central `piecosystem` coordination repository** (`docs/projects-catalog.md` and `docs/inter-service-matrix.md`).
-> Always verify cross-system health with `npm run status` in `D:\piecosystem`.
+> Always verify cross-system health with `pnpm run status` in `D:\piecosystem`.

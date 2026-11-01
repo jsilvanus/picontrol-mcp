@@ -2,13 +2,14 @@
 # Idempotent install of picontrol-mcp as a systemd user service. Run on the Pi as the service user, from the repo.
 # Untested on the Pi.
 set -eu
+command -v pnpm >/dev/null || { echo "pnpm is required (run: corepack enable; the version is pinned by packageManager)" >&2; exit 1; }
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="${PICONTROL_MCP_ENV:-$HOME/apps/picontrol-mcp.env}"
 NODE="${NODE:-$HOME/.local/bin/node}"
 
 cd "$APP_DIR"
-npm ci
-npm run build
+pnpm install --frozen-lockfile
+pnpm run build
 
 if [ ! -f "$ENV_FILE" ]; then
   cp .env.example "$ENV_FILE"
