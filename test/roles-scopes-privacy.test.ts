@@ -60,7 +60,7 @@ before(async () => {
     pimatrixUrl: 'http://pimatrix',
     pivoiceUrl: 'http://pivoice',
     pitubeUrl: 'http://pitube',
-    pilightUrl: 'http://pilight',
+    pitallyUrl: 'http://pitally',
     radioUrl: 'http://radio',
     encoderUrl: 'http://encoder',
   });

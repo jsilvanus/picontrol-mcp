@@ -50,8 +50,8 @@ export class PitubeClient extends BaseUpstreamClient {
   }
 }
 
-export class PilightClient extends BaseUpstreamClient {
-  constructor(options: { BASE: string; TOKEN?: string }) { super(options, 'pilight'); }
+export class PitallyClient extends BaseUpstreamClient {
+  constructor(options: { BASE: string; TOKEN?: string }) { super(options, 'pitally'); }
   listLights() { return this.request<unknown[]>('/api/v1/lights'); }
   getLight(id: string) { return this.request(`/api/v1/lights/${encodeURIComponent(id)}`); }
   setState(id: string, mode: string) { return this.request(`/api/v1/lights/${encodeURIComponent(id)}/state`, 'POST', { mode }); }
@@ -159,7 +159,7 @@ export interface Upstreams {
   pimatrix?: PimatrixClient;
   pivoice?: PivoiceClient;
   pitube?: PitubeClient;
-  pilight?: PilightClient;
+  pitally?: PitallyClient;
   radio?: RadioClient;
   encoder?: EncoderClient;
   pigateway?: PigatewayClient;
@@ -178,7 +178,7 @@ export function createUpstreams(config: Partial<Config>): Upstreams {
     ...(config.pimatrix ? { pimatrix: new PimatrixClient({ BASE: config.pimatrix.url, ...(config.pimatrix.secret ? { TOKEN: config.pimatrix.secret } : {}) }) } : {}),
     ...(config.pivoice ? { pivoice: new PivoiceClient({ BASE: config.pivoice.url, ...(config.pivoice.secret ? { TOKEN: config.pivoice.secret } : {}) }) } : {}),
     ...(config.pitube ? { pitube: new PitubeClient({ BASE: config.pitube.url, ...(config.pitube.secret ? { TOKEN: config.pitube.secret } : {}) }) } : {}),
-    ...(config.pilight ? { pilight: new PilightClient({ BASE: config.pilight.url, ...(config.pilight.secret ? { TOKEN: config.pilight.secret } : {}) }) } : {}),
+    ...(config.pitally ? { pitally: new PitallyClient({ BASE: config.pitally.url, ...(config.pitally.secret ? { TOKEN: config.pitally.secret } : {}) }) } : {}),
     ...(config.radio ? { radio: new RadioClient({ BASE: config.radio.url, ...(config.radio.secret ? { TOKEN: config.radio.secret } : {}) }) } : {}),
     ...(config.encoder ? { encoder: new EncoderClient({ BASE: config.encoder.url, ...(config.encoder.secret ? { TOKEN: config.encoder.secret } : {}) }) } : {}),
     ...(config.pigateway ? { pigateway: new PigatewayClient({ BASE: config.pigateway.url, ...(config.pigateway.secret ? { TOKEN: config.pigateway.secret } : {}) }) } : {}),
