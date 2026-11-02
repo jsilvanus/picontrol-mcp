@@ -43,7 +43,7 @@ function upstream(env: Env, urlName: string, secretName: string, fallback: strin
 }
 
 export function loadConfig(env: Env = process.env): Config {
-  const port = Number(env.PORT ?? '3200');
+  const port = Number(env.PORT ?? '3600');
   if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new Error('Invalid PORT: ' + env.PORT);
   const host = env.HOST ?? '127.0.0.1';
   const publicUrl = (env.MCP_PUBLIC_URL ?? `http://127.0.0.1:${port}`).replace(/\/$/, '');
@@ -65,18 +65,18 @@ export function loadConfig(env: Env = process.env): Config {
     ...(env.MCP_ALLOWED_HOSTS ?? '').split(',').map(entry => entry.trim()).filter(Boolean),
   ])];
 
-  const pimatrix = upstream(env, 'PIMATRIX_URL', 'PIMATRIX_API_KEY', 'http://127.0.0.1:3000');
-  const pivoice = upstream(env, 'PIVOICE_URL', 'PIVOICE_API_TOKEN', 'http://127.0.0.1:8095');
-  const pitube = upstream(env, 'PITUBE_URL', 'PITUBE_API_KEY', 'http://127.0.0.1:3105');
-  const pilight = upstream(env, 'PILIGHT_URL', 'PILIGHT_API_KEY', 'http://127.0.0.1:3200');
+  const pimatrix = upstream(env, 'PIMATRIX_URL', 'PIMATRIX_API_KEY', 'http://127.0.0.1:3101');
+  const pivoice = upstream(env, 'PIVOICE_URL', 'PIVOICE_API_TOKEN', 'http://127.0.0.1:3106');
+  const pitube = upstream(env, 'PITUBE_URL', 'PITUBE_API_KEY', 'http://127.0.0.1:3500');
+  const pilight = upstream(env, 'PILIGHT_URL', 'PILIGHT_API_KEY', 'http://127.0.0.1:3107');
   const radio = upstream(env, 'RADIO_URL', 'RADIO_API_TOKEN', 'http://127.0.0.1:3100');
-  const encoder = upstream(env, 'ENCODER_URL', 'ENCODER_API_KEY', env.PIMATRIX_URL ?? 'http://127.0.0.1:3000');
-  const pigateway = upstream(env, 'PIGATEWAY_URL', 'PIGATEWAY_API_KEY', 'http://127.0.0.1:3100');
-  const pispace = upstream(env, 'PISPACE_URL', 'PISPACE_API_KEY', 'http://127.0.0.1:3108');
-  const piperception = upstream(env, 'PIPERCEPTION_URL', 'PIPERCEPTION_API_KEY', 'http://127.0.0.1:3110');
-  const pisound = upstream(env, 'PISOUND_URL', 'PISOUND_API_KEY', 'http://127.0.0.1:3300');
+  const encoder = upstream(env, 'ENCODER_URL', 'ENCODER_API_KEY', env.PIMATRIX_URL ?? 'http://127.0.0.1:3101');
+  const pigateway = upstream(env, 'PIGATEWAY_URL', 'PIGATEWAY_API_KEY', 'http://127.0.0.1:3000');
+  const pispace = upstream(env, 'PISPACE_URL', 'PISPACE_API_KEY', 'http://127.0.0.1:3203');
+  const piperception = upstream(env, 'PIPERCEPTION_URL', 'PIPERCEPTION_API_KEY', 'http://127.0.0.1:3202');
+  const pisound = upstream(env, 'PISOUND_URL', 'PISOUND_API_KEY', 'http://127.0.0.1:3105');
   const pirundown = upstream(env, 'PIRUNDOWN_URL', 'PIRUNDOWN_API_KEY', 'http://127.0.0.1:3400');
-  const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3107');
+  const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3201');
 
   return {
     host, port, publicUrl, jwtSecret, authMode, allowedHosts,

@@ -1,6 +1,6 @@
 # picontrol-mcp
 
-MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pilight`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3200).
+MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pilight`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3600).
 
 ---
 
@@ -43,16 +43,16 @@ A user can have extra grants and denies (`--grant program:write`, `--deny atem:w
 ## Users (CLI)
 
 ```sh
-npm run build
-npm run user -- add anna --role operator          # password asked twice, hidden; or --password-stdin
-npm run user -- update anna --role viewer --grant program:write --disable
-npm run user -- list
-npm run user -- show anna
-npm run user -- remove anna
-npm run user -- token create anna --label claude-code --days 90   # printed once
-npm run user -- token list anna | token revoke anna <id>
-npm run user -- roles
-npm run user -- secret                            # new JWT_SECRET
+pnpm run build
+pnpm run user add anna --role operator          # password asked twice, hidden; or --password-stdin
+pnpm run user update anna --role viewer --grant program:write --disable
+pnpm run user list
+pnpm run user show anna
+pnpm run user remove anna
+pnpm run user token create anna --label claude-code --days 90   # printed once
+pnpm run user token list anna | token revoke anna <id>
+pnpm run user roles
+pnpm run user secret                            # new JWT_SECRET
 ```
 
 Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; the server refuses to start if group or others can read it. Passwords: scrypt (N=32768), at least 12 characters, never accepted as an argument. Tokens: stored as SHA-256 only.
@@ -62,7 +62,7 @@ Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; th
 ## Signing in
 
 `AUTH_MODE=both` (default):
-- **Personal access token** (`pcm_...`): `Authorization: Bearer ...`. Works over plain http on the LAN. For Claude Code, MCP Inspector, scripts: `claude mcp add --transport http pi http://kirkonpi.local:3200/mcp --header "Authorization: Bearer pcm_..."`.
+- **Personal access token** (`pcm_...`): `Authorization: Bearer ...`. Works over plain http on the LAN. For Claude Code, MCP Inspector, scripts: `claude mcp add --transport http pi http://kirkonpi.local:3600/mcp --header "Authorization: Bearer pcm_..."`.
 - **OAuth**: authorization code + PKCE S256, CIMD client ids, user name + password sign-in, consent page, refresh tokens. Put a TLS proxy in front for public access.
 
 `AUTH_MODE=token` turns the OAuth endpoints off.
@@ -72,8 +72,8 @@ Users live in `~/.config/picontrol-mcp/users.json` (`USERS_PATH`), mode 0600; th
 ## Testing & Build
 
 ```sh
-npm test      # Runs all 38 tests (users, permissions, CLI, OAuth, upstreams)
-npm run build # Generates upstream clients & compiles TypeScript
+pnpm test      # Runs all 38 tests (users, permissions, CLI, OAuth, upstreams)
+pnpm run build # Generates upstream clients & compiles TypeScript
 ```
 
 ---
