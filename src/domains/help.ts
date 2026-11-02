@@ -10,7 +10,7 @@ This server controls the church's Pi video and audio system. Read state from the
 - **composites**: slide overlay for the ATEM key: composite_set_slide, composite_control.
 - **voice**: microphone, web radio, transcription and captions (on / off / auto): voice_set_radio_mode, voice_set_transcription_mode, voice_set_captions_mode, voice_capture.
 - **youtube**: YouTube live stream broadcast management (pitube): youtube_broadcast_list, youtube_broadcast_select, youtube_broadcast_create, youtube_broadcast_start (Go Live), youtube_broadcast_stop, and youtube_status.
-- **tally**: Tally-Ma wireless tally lights & director cues (pilight): tally_list, tally_set_state (PGM/PRV/OFF), tally_cue (pan/zoom cues), tally_call, tally_hold, tally_brightness, tally_set_segments, tally_cycle.
+- **tally**: Tally-Ma wireless tally lights & director cues (pitally): tally_list, tally_set_state (PGM/PRV/OFF), tally_cue (pan/zoom cues), tally_call, tally_hold, tally_brightness, tally_set_segments, tally_cycle.
 - **radio**: Web radio relay streaming: radio_status, radio_start, radio_stop.
 - **encoder**: Matrox Monarch HDX hardware encoder: encoder_status, encoder_control (start/stop encoder 1 or 2), encoder_input_status.
 - **rundown**: Worship cue sheets and automated liturgy progression (pirundown): rundown_cue_next, rundown_cue_prev, rundown_goto, rundown_create_or_update, and rundown_action_exec. Read pi://help/rundown, pi://help/actions, pi://schema/rundown-v2, and pi://schema/actions.

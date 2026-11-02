@@ -21,7 +21,7 @@ export interface Config {
   pimatrix?: UpstreamConfig;
   pivoice?: UpstreamConfig;
   pitube?: UpstreamConfig;
-  pilight?: UpstreamConfig;
+  pitally?: UpstreamConfig;
   radio?: UpstreamConfig;
   encoder?: UpstreamConfig;
   pigateway?: UpstreamConfig;
@@ -68,7 +68,7 @@ export function loadConfig(env: Env = process.env): Config {
   const pimatrix = upstream(env, 'PIMATRIX_URL', 'PIMATRIX_API_KEY', 'http://127.0.0.1:3101');
   const pivoice = upstream(env, 'PIVOICE_URL', 'PIVOICE_API_TOKEN', 'http://127.0.0.1:3106');
   const pitube = upstream(env, 'PITUBE_URL', 'PITUBE_API_KEY', 'http://127.0.0.1:3500');
-  const pilight = upstream(env, 'PILIGHT_URL', 'PILIGHT_API_KEY', 'http://127.0.0.1:3107');
+  const pitally = upstream(env, 'PITALLY_URL', 'PITALLY_API_KEY', 'http://127.0.0.1:3107');
   const radio = upstream(env, 'RADIO_URL', 'RADIO_API_TOKEN', 'http://127.0.0.1:3100');
   const encoder = upstream(env, 'ENCODER_URL', 'ENCODER_API_KEY', env.PIMATRIX_URL ?? 'http://127.0.0.1:3101');
   const pigateway = upstream(env, 'PIGATEWAY_URL', 'PIGATEWAY_API_KEY', 'http://127.0.0.1:3000');
@@ -86,7 +86,7 @@ export function loadConfig(env: Env = process.env): Config {
     ...(pimatrix ? { pimatrix } : {}),
     ...(pivoice ? { pivoice } : {}),
     ...(pitube ? { pitube } : {}),
-    ...(pilight ? { pilight } : {}),
+    ...(pitally ? { pitally } : {}),
     ...(radio ? { radio } : {}),
     ...(encoder ? { encoder } : {}),
     ...(pigateway ? { pigateway } : {}),

@@ -34,7 +34,7 @@ before(async () => {
     return undefined;
   });
   h = await startHarness({
-    pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pilightUrl: 'http://pilight', radioUrl: 'http://radio', encoderUrl: 'http://encoder',
+    pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pitallyUrl: 'http://pitally', radioUrl: 'http://radio', encoderUrl: 'http://encoder',
     pigatewayUrl: 'http://pigateway', pispaceUrl: 'http://pispace', piperceptionUrl: 'http://piperception', pisoundUrl: 'http://pisound', pirundownUrl: 'http://pirundown', pigraphicsUrl: 'http://pigraphics',
   });
   for (const [name, role] of [['vera', 'viewer'], ['olli', 'operator'], ['aino', 'admin']] as const) {
@@ -199,16 +199,16 @@ describe('tools reach the upstream services', () => {
     });
   }
 
-  it('tally tools reach pilight', async () => {
+  it('tally tools reach pitally', async () => {
     let called = false;
-    const fakePilight = await fakeUpstream(call => {
+    const fakePitally = await fakeUpstream(call => {
       if (call.url === '/api/v1/lights/tally01/state') {
         called = true;
         return { body: { ok: true } };
       }
       return undefined;
     });
-    const local = await startHarness({ pilightUrl: fakePilight.url });
+    const local = await startHarness({ pitallyUrl: fakePitally.url });
     await local.users.create({ name: 'olli', password: 'correct horse battery', role: 'operator' });
     const { token } = local.users.createToken('olli', 't');
     const client = new Client({ name: 't', version: '1' });
@@ -216,7 +216,7 @@ describe('tools reach the upstream services', () => {
     const result = await client.callTool({ name: 'tally_set_state', arguments: { id: 'tally01', mode: 'pgm' } });
     assert.equal(result.isError, undefined);
     assert.equal(called, true);
-    await client.close(); await local.close(); await fakePilight.close();
+    await client.close(); await local.close(); await fakePitally.close();
   });
 
   it('radio tools reach radio relay', async () => {

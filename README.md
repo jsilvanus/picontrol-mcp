@@ -1,6 +1,6 @@
 # picontrol-mcp
 
-MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pilight`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3600).
+MCP server for the Pi stack (`pimatrix`, `pipgm`, `pivoice`, `pitube`, `pitally`, `radio-relay`). Streamable HTTP, stateless, Node 24, ESM, bare metal (systemd), one port (default 3600).
 
 ---
 

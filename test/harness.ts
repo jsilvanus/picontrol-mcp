@@ -44,7 +44,7 @@ export interface Harness {
 }
 
 export async function startHarness(options: {
-  pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pilightUrl?: string; radioUrl?: string; encoderUrl?: string;
+  pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pitallyUrl?: string; radioUrl?: string; encoderUrl?: string;
   pigatewayUrl?: string; pispaceUrl?: string; piperceptionUrl?: string; pisoundUrl?: string; pirundownUrl?: string; pigraphicsUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
@@ -65,7 +65,7 @@ export async function startHarness(options: {
       ...(options.pimatrixUrl ? { pimatrix: { url: options.pimatrixUrl, secret: 'pimatrix-secret-key' } } : {}),
       ...(options.pivoiceUrl ? { pivoice: { url: options.pivoiceUrl, secret: 'pivoice-secret-token' } } : {}),
       ...(options.pitubeUrl ? { pitube: { url: options.pitubeUrl, secret: 'pitube-secret-key' } } : {}),
-      ...(options.pilightUrl ? { pilight: { url: options.pilightUrl, secret: 'pilight-secret-key' } } : {}),
+      ...(options.pitallyUrl ? { pitally: { url: options.pitallyUrl, secret: 'pitally-secret-key' } } : {}),
       ...(options.radioUrl ? { radio: { url: options.radioUrl, secret: 'radio-secret-token' } } : {}),
       ...(options.encoderUrl ? { encoder: { url: options.encoderUrl, secret: 'encoder-secret-token' } } : {}),
       ...(options.pigatewayUrl ? { pigateway: { url: options.pigatewayUrl, secret: 'pigateway-key' } } : {}),
