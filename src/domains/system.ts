@@ -1,4 +1,4 @@
-import { defineTool, type DomainContext, type DomainModule } from '../mcp/registry.js';
+import { defineTool, requireClient, type DomainContext, type DomainModule } from '../mcp/registry.js';
 import { describeError } from '../upstream.js';
 import { describeRights } from '../users/permissions.js';
 import { json } from './util.js';
@@ -35,6 +35,24 @@ export const system: DomainModule = {
       permission: read, upstream: null,
       read: async () => ({ text: HELP, mimeType: 'text/markdown' }),
     },
+    {
+      name: 'modules', uri: 'pi://modules', title: 'Module toggle state',
+      description: 'Returns which UI modules are currently enabled on the gateway. When restricted is false, all modules are available. Use this to understand what is remotely controllable.',
+      permission: read, upstream: 'pigateway' as const,
+      read: async ctx => {
+        const gw = requireClient(ctx, 'pigateway');
+        return json(await gw.getUiModules());
+      },
+    },
+    {
+      name: 'ecosystem', uri: 'pi://ecosystem', title: 'Ecosystem health',
+      description: 'Health and activity status of all modules in the Pi ecosystem: which are active, available, configured, and when last seen.',
+      permission: read, upstream: 'pigateway' as const,
+      read: async ctx => {
+        const gw = requireClient(ctx, 'pigateway');
+        return json(await gw.getEcosystem());
+      },
+    },
   ],
   tools: [
     defineTool({
@@ -47,6 +65,12 @@ export const system: DomainModule = {
         permissions: describeRights(ctx.user.rights),
         services: { pimatrix: Boolean(ctx.upstreams.pimatrix), pivoice: Boolean(ctx.upstreams.pivoice) },
       }),
+    }),
+    defineTool({
+      name: 'get_module_toggles', title: 'Get module toggles',
+      description: 'Returns which UI modules are enabled on the gateway (the PIGATEWAY_UI_MODULES setting). When restricted is false, all modules are available. Useful for understanding what can be remotely controlled.',
+      permission: read, upstream: 'pigateway', effect: 'read', idempotent: true, input: {},
+      run: async (_args, ctx) => requireClient(ctx, 'pigateway').getUiModules(),
     }),
   ],
 };
