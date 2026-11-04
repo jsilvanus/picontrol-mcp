@@ -25,8 +25,8 @@ import type { Principal } from '../users/store.js';
 import { annotations, canUse, type DomainContext, type DomainModule, type ResourceBody, type ToolDefinition } from './registry.js';
 
 /**
- * Named domain modules — the canonical list. `name` maps to gateway module
- * toggle names via GATEWAY_MODULE_TO_DOMAIN_NAMES.
+ * Named domain modules — the canonical list. `name` maps to piecosystem repo names
+ * via GATEWAY_MODULE_TO_DOMAIN_NAMES below.
  */
 export const NAMED_DOMAIN_MODULES: ReadonlyArray<{ name: string; module: DomainModule }> = [
   { name: 'system',     module: system },
@@ -51,15 +51,24 @@ export const NAMED_DOMAIN_MODULES: ReadonlyArray<{ name: string; module: DomainM
 export const DOMAIN_MODULES: DomainModule[] = NAMED_DOMAIN_MODULES.map(n => n.module);
 
 /**
- * Maps pigateway UI module names (PIGATEWAY_UI_MODULES) to the MCP domain
- * names they enable. Domains not listed here are always-on.
+ * Maps piecosystem repo names (as used in PIGATEWAY_UI_MODULES) to the MCP
+ * domain names they enable. Each key is a repo name from jsilvanus/piecosystem.
+ * Domains not listed here are always-on (see ALWAYS_ON_DOMAIN_NAMES).
  */
 const GATEWAY_MODULE_TO_DOMAIN_NAMES: Record<string, string[]> = {
-  matrix:    ['routing', 'cameras', 'atem', 'composites', 'space', 'perception'],
-  outputs:   ['routing', 'composites'],
-  pivoice:   ['voice'],
-  piencoder: ['encoder'],
-  pitube:    ['youtube'],
+  pimatrix:    ['routing', 'cameras', 'atem', 'composites'],
+  pivoice:     ['voice'],
+  piencoder:   ['encoder'],
+  pitube:      ['youtube'],
+  pisound:     ['sound'],
+  pitally:     ['tally'],
+  pirundown:   ['rundown'],
+  pigraphics:  ['graphics'],
+  piprogram:   ['program'],
+  picam:       ['cameras'],
+  pispace:     ['space'],
+  piperception: ['perception'],
+  piswitch:    ['routing'],
 };
 
 /**
@@ -67,12 +76,12 @@ const GATEWAY_MODULE_TO_DOMAIN_NAMES: Record<string, string[]> = {
  * toggles — they are utility, infrastructure or cross-cutting.
  */
 const ALWAYS_ON_DOMAIN_NAMES = new Set([
-  'system', 'world', 'program', 'tally', 'radio', 'sound', 'rundown', 'graphics',
+  'system', 'world',
 ]);
 
 /**
  * Filters NAMED_DOMAIN_MODULES to only those permitted by the gateway's
- * module toggle list. Always-on domains are never filtered out.
+ * module toggle list. Always-on domains (system, world) are never filtered out.
  * Pass null (unrestricted) to get the full list.
  */
 export function filterDomainsByGatewayModules(gatewayModules: string[] | null): DomainModule[] {
