@@ -46,6 +46,7 @@ export interface Harness {
 export async function startHarness(options: {
   pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pitallyUrl?: string; radioUrl?: string; encoderUrl?: string;
   pigatewayUrl?: string; pispaceUrl?: string; piperceptionUrl?: string; pisoundUrl?: string; pirundownUrl?: string; pigraphicsUrl?: string;
+  pirundownDesignerUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
 } = {}): Promise<Harness> {
@@ -74,6 +75,7 @@ export async function startHarness(options: {
       ...(options.pisoundUrl ? { pisound: { url: options.pisoundUrl, secret: 'pisound-key' } } : {}),
       ...(options.pirundownUrl ? { pirundown: { url: options.pirundownUrl, secret: 'pirundown-key' } } : {}),
       ...(options.pigraphicsUrl ? { pigraphics: { url: options.pigraphicsUrl, secret: 'pigraphics-key' } } : {}),
+      ...(options.pirundownDesignerUrl ? { pirundownDesigner: { url: options.pirundownDesignerUrl, secret: 'pirundown-designer-key' } } : {}),
     }),
     audit: new AuditLog(auditPath),
     logger: false,

@@ -30,6 +30,7 @@ export interface Config {
   pisound?: UpstreamConfig;
   pirundown?: UpstreamConfig;
   pigraphics?: UpstreamConfig;
+  pirundownDesigner?: UpstreamConfig;
 }
 
 type Env = Record<string, string | undefined>;
@@ -77,6 +78,7 @@ export function loadConfig(env: Env = process.env): Config {
   const pisound = upstream(env, 'PISOUND_URL', 'PISOUND_API_KEY', 'http://127.0.0.1:3105');
   const pirundown = upstream(env, 'PIRUNDOWN_URL', 'PIRUNDOWN_API_KEY', 'http://127.0.0.1:3400');
   const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3201');
+  const pirundownDesigner = upstream(env, 'PIRUNDOWN_DESIGNER_URL', 'PIRUNDOWN_DESIGNER_API_KEY', 'http://127.0.0.1:3610');
 
   return {
     host, port, publicUrl, jwtSecret, authMode, allowedHosts,
@@ -95,5 +97,6 @@ export function loadConfig(env: Env = process.env): Config {
     ...(pisound ? { pisound } : {}),
     ...(pirundown ? { pirundown } : {}),
     ...(pigraphics ? { pigraphics } : {}),
+    ...(pirundownDesigner ? { pirundownDesigner } : {}),
   };
 }

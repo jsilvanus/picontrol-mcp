@@ -163,6 +163,18 @@ export class PigraphicsClient extends BaseUpstreamClient {
   }
 }
 
+export class PirundownDesignerClient extends BaseUpstreamClient {
+  constructor(options: { BASE: string; TOKEN?: string }) { super(options, 'pirundown-designer'); }
+  getState() { return this.request('/api/v1/designer/state'); }
+  applyYaml(yaml: string) { return this.request('/api/v1/designer/state', 'POST', { yaml }); }
+  addItem(item: unknown, section?: string, index?: number) { return this.request('/api/v1/designer/items', 'POST', { item, section, index }); }
+  updateItem(id: string, patch: unknown) { return this.request(`/api/v1/designer/items/${encodeURIComponent(id)}`, 'PUT', patch); }
+  deleteItem(id: string) { return this.request(`/api/v1/designer/items/${encodeURIComponent(id)}`, 'DELETE'); }
+  setMetadata(metadata?: unknown, hymns?: unknown, speakers?: unknown) { return this.request('/api/v1/designer/metadata', 'PATCH', { metadata, hymns, speakers }); }
+  loadTemplate(templateId: string) { return this.request('/api/v1/designer/template', 'POST', { templateId }); }
+  chat(message: string) { return this.request('/api/v1/designer/agent/chat', 'POST', { message }); }
+}
+
 export interface Upstreams {
   pimatrix?: PimatrixClient;
   pivoice?: PivoiceClient;
@@ -176,6 +188,7 @@ export interface Upstreams {
   pisound?: PisoundClient;
   pirundown?: PirundownClient;
   pigraphics?: PigraphicsClient;
+  pirundownDesigner?: PirundownDesignerClient;
 }
 
 export type UpstreamName = keyof Upstreams;
@@ -195,6 +208,7 @@ export function createUpstreams(config: Partial<Config>): Upstreams {
     ...(config.pisound ? { pisound: new PisoundClient({ BASE: config.pisound.url, ...(config.pisound.secret ? { TOKEN: config.pisound.secret } : {}) }) } : {}),
     ...(config.pirundown ? { pirundown: new PirundownClient({ BASE: config.pirundown.url, ...(config.pirundown.secret ? { TOKEN: config.pirundown.secret } : {}) }) } : {}),
     ...(config.pigraphics ? { pigraphics: new PigraphicsClient({ BASE: config.pigraphics.url, ...(config.pigraphics.secret ? { TOKEN: config.pigraphics.secret } : {}) }) } : {}),
+    ...(config.pirundownDesigner ? { pirundownDesigner: new PirundownDesignerClient({ BASE: config.pirundownDesigner.url, ...(config.pirundownDesigner.secret ? { TOKEN: config.pirundownDesigner.secret } : {}) }) } : {}),
   };
 }
 

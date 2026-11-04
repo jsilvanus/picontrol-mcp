@@ -1,7 +1,7 @@
 export const DOMAINS = [
   'routing', 'cameras', 'atem', 'program', 'composites', 'voice', 'youtube',
   'tally', 'radio', 'encoder', 'system',
-  'world', 'space', 'perception', 'sound', 'rundown', 'graphics',
+  'world', 'space', 'perception', 'sound', 'rundown', 'graphics', 'designer',
 ] as const;
 export type Domain = (typeof DOMAINS)[number];
 
@@ -32,6 +32,7 @@ export const BUILT_IN_ROLES: Record<string, PermissionText[]> = {
     'tally:operate',
     'rundown:operate',
     'graphics:operate',
+    'designer:operate',
     'perception:view',
     'space:view',
     'voice:view',

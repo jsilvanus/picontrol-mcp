@@ -36,6 +36,7 @@ before(async () => {
   h = await startHarness({
     pimatrixUrl: pimatrix.url, pivoiceUrl: pivoice.url, pitubeUrl: 'http://pitube', pitallyUrl: 'http://pitally', radioUrl: 'http://radio', encoderUrl: 'http://encoder',
     pigatewayUrl: 'http://pigateway', pispaceUrl: 'http://pispace', piperceptionUrl: 'http://piperception', pisoundUrl: 'http://pisound', pirundownUrl: 'http://pirundown', pigraphicsUrl: 'http://pigraphics',
+    pirundownDesignerUrl: 'http://pirundown-designer',
   });
   for (const [name, role] of [['vera', 'viewer'], ['olli', 'operator'], ['aino', 'admin']] as const) {
     await h.users.create({ name, password: 'correct horse battery', role });

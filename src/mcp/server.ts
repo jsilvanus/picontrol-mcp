@@ -18,6 +18,7 @@ import { perceptionDomain } from '../domains/perception.js';
 import { soundDomain } from '../domains/sound.js';
 import { rundownDomain } from '../domains/rundown.js';
 import { graphicsDomain } from '../domains/graphics.js';
+import { designerDomain } from '../domains/designer.js';
 import { defaultPseudonymizer } from '../pseudonymize.js';
 import { redact } from '../redact.js';
 import { describeError, type Upstreams } from '../upstream.js';
@@ -46,6 +47,7 @@ export const NAMED_DOMAIN_MODULES: ReadonlyArray<{ name: string; module: DomainM
   { name: 'sound',      module: soundDomain },
   { name: 'rundown',    module: rundownDomain },
   { name: 'graphics',   module: graphicsDomain },
+  { name: 'designer',   module: designerDomain },
 ];
 
 export const DOMAIN_MODULES: DomainModule[] = NAMED_DOMAIN_MODULES.map(n => n.module);
@@ -62,7 +64,8 @@ const GATEWAY_MODULE_TO_DOMAIN_NAMES: Record<string, string[]> = {
   pitube:      ['youtube'],
   pisound:     ['sound'],
   pitally:     ['tally'],
-  pirundown:   ['rundown'],
+  pirundown:   ['rundown', 'designer'],
+  'pirundown-designer': ['designer'],
   pigraphics:  ['graphics'],
   piprogram:   ['program'],
   picam:       ['cameras'],
