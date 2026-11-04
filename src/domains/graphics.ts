@@ -17,6 +17,15 @@ export const graphicsDomain: DomainModule = {
       upstream: 'pigraphics',
       read: async ctx => json(await requireClient(ctx, 'pigraphics').getStatus()),
     },
+    {
+      name: 'graphics-templates',
+      uri: 'pi://graphics/templates',
+      title: 'Broadcast Graphics Template Catalog',
+      description: 'Catalog of available broadcast lower-third and overlay templates (pigraphics). Scope: stream only.',
+      permission: viewStream,
+      upstream: 'pigraphics',
+      read: async ctx => json(await requireClient(ctx, 'pigraphics').listTemplates()),
+    },
   ],
   tools: [
     defineTool({
@@ -28,16 +37,18 @@ export const graphicsDomain: DomainModule = {
       effect: 'live',
       input: {
         action: z.enum(['show', 'hide']),
+        templateId: z.string().optional().describe('Optional template ID (e.g. "lower-third-speaker", "scripture-reading")'),
         title: z.string().optional().describe('Speaker name or role title (e.g. "Celebrant / Liturgi")'),
         subtitle: z.string().optional().describe('Subtitle or affiliation (e.g. "Kirkkoherra", "Riihimäen seurakunta")'),
         durationMs: z.number().int().min(1000).max(30000).default(6000).describe('Display duration before auto-hiding'),
       },
-      run: async ({ action, title, subtitle, durationMs }, ctx) => {
+      run: async ({ action, templateId, title, subtitle, durationMs }, ctx) => {
         const client = requireClient(ctx, 'pigraphics');
         if (action === 'hide') return client.lowerThird('hide');
         const resolvedTitle = title ? defaultPseudonymizer.getRealName(title) : '';
         const resolvedSubtitle = subtitle ? defaultPseudonymizer.getRealName(subtitle) : undefined;
         return client.lowerThird('show', {
+          ...(templateId ? { templateId } : {}),
           title: resolvedTitle,
           ...(resolvedSubtitle !== undefined ? { subtitle: resolvedSubtitle } : {}),
           durationMs,

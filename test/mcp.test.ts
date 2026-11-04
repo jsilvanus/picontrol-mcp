@@ -58,7 +58,7 @@ describe('permissions on tools and resources', () => {
     const admin = await connect(tokens.aino!);
     const names = async (c: Client) => (await c.listTools()).tools.map(t => t.name);
     const v = await names(viewer), o = await names(operator), a = await names(admin);
-    assert.deepEqual(v, ['system_whoami']);
+    assert.deepEqual(v, ['system_whoami', 'get_module_toggles']);
     assert.ok(o.includes('atem_switch') && o.includes('voice_set_radio_mode') && o.includes('camera_move'));
     assert.ok(!o.includes('routing_set_lock') && !o.includes('program_configure_pipeline') && !o.includes('voice_configure'));
     for (const name of ['routing_set_lock', 'program_configure_pipeline', 'voice_configure']) assert.ok(a.includes(name));

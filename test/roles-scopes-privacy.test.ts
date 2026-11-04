@@ -156,7 +156,7 @@ describe('Roles, Scopes, and Privacy Isolation', () => {
   it('view role can observe world state and rundown, but has zero mutating tools', async () => {
     const client = await connect(tokens['observer']!);
     const toolNames = (await client.listTools()).tools.map(t => t.name);
-    assert.deepEqual(toolNames, ['system_whoami']);
+    assert.deepEqual(toolNames, ['system_whoami', 'get_module_toggles']);
 
     // Can read resources
     const resources = (await client.listResources()).resources.map(r => r.uri);
@@ -201,6 +201,22 @@ describe('Roles, Scopes, and Privacy Isolation', () => {
     // The local graphics engine received the real local name for on-screen broadcast rendering!
     assert.equal(body.title, 'Kari Salonen');
     assert.equal(body.subtitle, 'Kirkkoherra');
+
+    // Also supports specifying templateId
+    await client.callTool({
+      name: 'graphics_lower_third',
+      arguments: {
+        action: 'show',
+        templateId: 'scripture-reading',
+        title: 'Scripture Reader',
+      },
+    });
+    const templateCall = pigraphics.calls.at(-1);
+    assert.equal((templateCall?.body as any)?.templateId, 'scripture-reading');
+
+    // Director / stream operator can read graphics templates catalog
+    const templatesRes = await client.readResource({ uri: 'pi://graphics/templates' });
+    assert.ok(templatesRes.contents[0]);
 
     await client.close();
   });

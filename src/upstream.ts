@@ -153,7 +153,9 @@ export class PirundownClient extends BaseUpstreamClient {
 export class PigraphicsClient extends BaseUpstreamClient {
   constructor(options: { BASE: string; TOKEN?: string }) { super(options, 'pigraphics'); }
   getStatus() { return this.request('/api/v1/graphics'); }
-  lowerThird(action: 'show' | 'hide', data?: { title: string; subtitle?: string; durationMs?: number }) {
+  listTemplates() { return this.request('/api/v1/graphics/templates'); }
+  getTemplate(id: string) { return this.request(`/api/v1/graphics/templates/${encodeURIComponent(id)}`); }
+  lowerThird(action: 'show' | 'hide', data?: { templateId?: string; title?: string; subtitle?: string; durationMs?: number }) {
     return this.request('/api/v1/graphics/lower-third', 'POST', { action, ...(data ?? {}) });
   }
   overlay(action: 'show' | 'hide', data?: { type: string; content: string }) {

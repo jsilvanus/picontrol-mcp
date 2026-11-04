@@ -330,6 +330,14 @@ export const RUNDOWN_V2_JSON_SCHEMA = {
               },
             },
             graphicsCue: { type: 'object' },
+            graphicsOptions: {
+              type: 'object',
+              properties: {
+                lowerThird: { type: 'array', items: { type: 'string' } },
+                overlay: { type: 'array', items: { type: 'string' } },
+                templates: { type: 'array', items: { type: 'string' } },
+              },
+            },
           },
         },
       ],
