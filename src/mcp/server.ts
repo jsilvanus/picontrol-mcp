@@ -24,25 +24,69 @@ import { describeError, type Upstreams } from '../upstream.js';
 import type { Principal } from '../users/store.js';
 import { annotations, canUse, type DomainContext, type DomainModule, type ResourceBody, type ToolDefinition } from './registry.js';
 
-export const DOMAIN_MODULES: DomainModule[] = [
-  system,
-  routing,
-  cameras,
-  atem,
-  program,
-  composites,
-  voiceDomain,
-  youtubeDomain,
-  tallyDomain,
-  radioDomain,
-  encoderDomain,
-  worldDomain,
-  spaceDomain,
-  perceptionDomain,
-  soundDomain,
-  rundownDomain,
-  graphicsDomain,
+/**
+ * Named domain modules — the canonical list. `name` maps to gateway module
+ * toggle names via GATEWAY_MODULE_TO_DOMAIN_NAMES.
+ */
+export const NAMED_DOMAIN_MODULES: ReadonlyArray<{ name: string; module: DomainModule }> = [
+  { name: 'system',     module: system },
+  { name: 'routing',    module: routing },
+  { name: 'cameras',    module: cameras },
+  { name: 'atem',       module: atem },
+  { name: 'program',    module: program },
+  { name: 'composites', module: composites },
+  { name: 'voice',      module: voiceDomain },
+  { name: 'youtube',    module: youtubeDomain },
+  { name: 'tally',      module: tallyDomain },
+  { name: 'radio',      module: radioDomain },
+  { name: 'encoder',    module: encoderDomain },
+  { name: 'world',      module: worldDomain },
+  { name: 'space',      module: spaceDomain },
+  { name: 'perception', module: perceptionDomain },
+  { name: 'sound',      module: soundDomain },
+  { name: 'rundown',    module: rundownDomain },
+  { name: 'graphics',   module: graphicsDomain },
 ];
+
+export const DOMAIN_MODULES: DomainModule[] = NAMED_DOMAIN_MODULES.map(n => n.module);
+
+/**
+ * Maps pigateway UI module names (PIGATEWAY_UI_MODULES) to the MCP domain
+ * names they enable. Domains not listed here are always-on.
+ */
+const GATEWAY_MODULE_TO_DOMAIN_NAMES: Record<string, string[]> = {
+  matrix:    ['routing', 'cameras', 'atem', 'composites', 'space', 'perception'],
+  outputs:   ['routing', 'composites'],
+  pivoice:   ['voice'],
+  piencoder: ['encoder'],
+  pitube:    ['youtube'],
+};
+
+/**
+ * Domain names that are always registered regardless of gateway module
+ * toggles — they are utility, infrastructure or cross-cutting.
+ */
+const ALWAYS_ON_DOMAIN_NAMES = new Set([
+  'system', 'world', 'program', 'tally', 'radio', 'sound', 'rundown', 'graphics',
+]);
+
+/**
+ * Filters NAMED_DOMAIN_MODULES to only those permitted by the gateway's
+ * module toggle list. Always-on domains are never filtered out.
+ * Pass null (unrestricted) to get the full list.
+ */
+export function filterDomainsByGatewayModules(gatewayModules: string[] | null): DomainModule[] {
+  if (!gatewayModules) return DOMAIN_MODULES;
+  const enabled = new Set<string>();
+  for (const gm of gatewayModules) {
+    for (const dm of GATEWAY_MODULE_TO_DOMAIN_NAMES[gm] ?? []) {
+      enabled.add(dm);
+    }
+  }
+  return NAMED_DOMAIN_MODULES
+    .filter(n => ALWAYS_ON_DOMAIN_NAMES.has(n.name) || enabled.has(n.name))
+    .map(n => n.module);
+}
 
 export interface McpServerOptions {
   user: Principal;
