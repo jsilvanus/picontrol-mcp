@@ -92,6 +92,12 @@ export class PigatewayClient extends BaseUpstreamClient {
   getStatus() { return this.request('/api/v1/status'); }
   getRundown() { return this.request('/api/v1/rundown'); }
   advanceRundown(step?: number) { return this.request('/api/v1/rundown/advance', 'POST', { step }); }
+  getUiModules(): Promise<{ modules: string[] | null; restricted: boolean }> {
+    return this.request('/api/v1/ui/modules');
+  }
+  getEcosystem(): Promise<unknown> {
+    return this.request('/api/v1/ecosystem');
+  }
 }
 
 export class PispaceClient extends BaseUpstreamClient {
