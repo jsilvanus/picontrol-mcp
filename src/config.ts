@@ -47,7 +47,7 @@ export function loadConfig(env: Env = process.env): Config {
   const port = Number(env.PORT ?? '3600');
   if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new Error('Invalid PORT: ' + env.PORT);
   const host = env.HOST ?? '127.0.0.1';
-  const publicUrl = (env.MCP_PUBLIC_URL ?? `http://127.0.0.1:${port}`).replace(/\/$/, '');
+  const publicUrl = (env.MCP_PUBLIC_URL ?? `http://127.0.0.1:${port}`).replace(/\/+$/, '').replace(/\/mcp$/, '');
 
   const secretText = env.JWT_SECRET;
   if (!secretText) throw new Error('JWT_SECRET is required (generate one with: npm run user -- secret)');
