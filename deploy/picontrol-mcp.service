@@ -1,0 +1,15 @@
+[Unit]
+Description=picontrol MCP server
+After=network-online.target pimatrix.service
+
+[Service]
+WorkingDirectory=%h/apps/picontrol-mcp
+EnvironmentFile=%h/apps/picontrol-mcp.env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_NO_WARNINGS=1
+ExecStart=%h/.local/bin/node dist/server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
