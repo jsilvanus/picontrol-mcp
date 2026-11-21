@@ -8,9 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 5
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: |
           for name in pimatrix pivoice; do
             curl -fsSL "https://raw.githubusercontent.com/jsilvanus/$name/main/openapi/openapi.yaml" -o "/tmp/$name.yaml" || { echo "cannot fetch $name (private repo?)"; continue; }
