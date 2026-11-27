@@ -40,6 +40,7 @@ export interface Config {
   pirundown?: UpstreamConfig;
   pigraphics?: UpstreamConfig;
   pirundownDesigner?: UpstreamConfig;
+  pitimer?: UpstreamConfig;
 }
 
 type Env = Record<string, string | undefined>;
@@ -88,6 +89,7 @@ export function loadConfig(env: Env = process.env): Config {
   const pirundown = upstream(env, 'PIRUNDOWN_URL', 'PIRUNDOWN_API_KEY', 'http://127.0.0.1:3400');
   const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3201');
   const pirundownDesigner = upstream(env, 'PIRUNDOWN_DESIGNER_URL', 'PIRUNDOWN_DESIGNER_API_KEY', 'http://127.0.0.1:3610');
+  const pitimer = upstream(env, 'PITIMER_URL', 'PITIMER_API_KEY', 'http://127.0.0.1:3403');
 
   const oidcIssuer = (env.OIDC_ISSUER ?? env.TUNNUS_OIDC_ISSUER)?.trim();
   const oidc: OidcConfig | undefined = oidcIssuer
@@ -119,5 +121,6 @@ export function loadConfig(env: Env = process.env): Config {
     ...(pirundown ? { pirundown } : {}),
     ...(pigraphics ? { pigraphics } : {}),
     ...(pirundownDesigner ? { pirundownDesigner } : {}),
+    ...(pitimer ? { pitimer } : {}),
   };
 }

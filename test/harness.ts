@@ -47,6 +47,7 @@ export async function startHarness(options: {
   pimatrixUrl?: string; pivoiceUrl?: string; pitubeUrl?: string; pitallyUrl?: string; radioUrl?: string; encoderUrl?: string;
   pigatewayUrl?: string; pispaceUrl?: string; piperceptionUrl?: string; pisoundUrl?: string; pirundownUrl?: string; pigraphicsUrl?: string;
   pirundownDesignerUrl?: string;
+  pitimerUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
   tunnus?: AppOptions['tunnus'];
@@ -77,6 +78,7 @@ export async function startHarness(options: {
       ...(options.pirundownUrl ? { pirundown: { url: options.pirundownUrl, secret: 'pirundown-key' } } : {}),
       ...(options.pigraphicsUrl ? { pigraphics: { url: options.pigraphicsUrl, secret: 'pigraphics-key' } } : {}),
       ...(options.pirundownDesignerUrl ? { pirundownDesigner: { url: options.pirundownDesignerUrl, secret: 'pirundown-designer-key' } } : {}),
+      ...(options.pitimerUrl ? { pitimer: { url: options.pitimerUrl, secret: 'pitimer-key' } } : {}),
     }),
     audit: new AuditLog(auditPath),
     logger: false,

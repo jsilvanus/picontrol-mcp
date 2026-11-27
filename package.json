@@ -41,7 +41,7 @@
     "service": "picontrol-mcp",
     "layer": "Control plane",
     "displayName": "picontrol MCP server",
-    "port": 3601,
+    "port": 3600,
     "healthEndpoint": "/health",
     "envPortVar": "PORT"
   }

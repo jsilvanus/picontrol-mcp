@@ -175,6 +175,23 @@ export class PirundownDesignerClient extends BaseUpstreamClient {
   chat(message: string) { return this.request('/api/v1/designer/agent/chat', 'POST', { message }); }
 }
 
+export class PitimerClient extends BaseUpstreamClient {
+  constructor(options: { BASE: string; TOKEN?: string }) { super(options, 'pitimer'); }
+  getStatus() { return this.request('/api/v1/status'); }
+  mute(duration?: string) { return this.request('/api/v1/mute', 'POST', duration ? { duration } : {}); }
+  unmute() { return this.request('/api/v1/unmute', 'POST'); }
+  muteTimer(id: string, duration?: string) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}/mute`, 'POST', duration ? { duration } : {}); }
+  unmuteTimer(id: string) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}/unmute`, 'POST'); }
+  listTimers() { return this.request('/api/v1/timers'); }
+  getTimer(id: string) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}`); }
+  saveTimer(payload: unknown) { return this.request('/api/v1/timers', 'POST', payload); }
+  updateTimer(id: string, payload: unknown) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}`, 'PUT', payload); }
+  deleteTimer(id: string) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}`, 'DELETE'); }
+  runPhase(id: string, phase?: string) { return this.request(`/api/v1/timers/${encodeURIComponent(id)}/run`, 'POST', phase ? { phase } : {}); }
+  cancelRun(runId: string) { return this.request(`/api/v1/runs/${encodeURIComponent(runId)}/cancel`, 'POST'); }
+  listRuns() { return this.request('/api/v1/runs'); }
+}
+
 export interface Upstreams {
   pimatrix?: PimatrixClient;
   pivoice?: PivoiceClient;
@@ -189,6 +206,7 @@ export interface Upstreams {
   pirundown?: PirundownClient;
   pigraphics?: PigraphicsClient;
   pirundownDesigner?: PirundownDesignerClient;
+  pitimer?: PitimerClient;
 }
 
 export type UpstreamName = keyof Upstreams;
@@ -209,6 +227,7 @@ export function createUpstreams(config: Partial<Config>): Upstreams {
     ...(config.pirundown ? { pirundown: new PirundownClient({ BASE: config.pirundown.url, ...(config.pirundown.secret ? { TOKEN: config.pirundown.secret } : {}) }) } : {}),
     ...(config.pigraphics ? { pigraphics: new PigraphicsClient({ BASE: config.pigraphics.url, ...(config.pigraphics.secret ? { TOKEN: config.pigraphics.secret } : {}) }) } : {}),
     ...(config.pirundownDesigner ? { pirundownDesigner: new PirundownDesignerClient({ BASE: config.pirundownDesigner.url, ...(config.pirundownDesigner.secret ? { TOKEN: config.pirundownDesigner.secret } : {}) }) } : {}),
+    ...(config.pitimer ? { pitimer: new PitimerClient({ BASE: config.pitimer.url, ...(config.pitimer.secret ? { TOKEN: config.pitimer.secret } : {}) }) } : {}),
   };
 }
 
