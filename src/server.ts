@@ -5,11 +5,12 @@ import { SqliteAuthStore } from './storage/sqlite.js';
 import { createUpstreams } from './upstream.js';
 import { filterDomainsByGatewayModules } from './mcp/server.js';
 import { UserStore } from './users/store.js';
+import { createTunnusVerifier } from './tunnus.js';
 
 const config = loadConfig();
 const users = new UserStore(config.usersPath);
 users.assertSecure();
-if (users.list().length === 0) {
+if (users.list().length === 0 && !config.oidc) {
   console.warn(`No users in ${config.usersPath}. Create one: npm run user -- add <name> --role admin`);
 }
 if (!config.publicUrl.startsWith('https://') && !/^http:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(config.publicUrl)) {
@@ -18,6 +19,30 @@ if (!config.publicUrl.startsWith('https://') && !/^http:\/\/(127\.0\.0\.1|localh
 
 const store = new SqliteAuthStore(config.statePath);
 const upstreams = createUpstreams(config);
+
+let tunnus: { verifier: ReturnType<typeof createTunnusVerifier>; customGroupMapping?: Map<string, string[]> } | undefined;
+if (config.oidc) {
+  const customGroupMapping = new Map<string, string[]>();
+  if (config.oidc.groupRights) {
+    for (const entry of config.oidc.groupRights.split(';').map(s => s.trim()).filter(Boolean)) {
+      const eq = entry.indexOf('=');
+      if (eq > 0) {
+        const group = entry.slice(0, eq).trim();
+        const rights = entry.slice(eq + 1).split(',').map(s => s.trim()).filter(Boolean);
+        customGroupMapping.set(group, rights);
+      }
+    }
+  }
+  tunnus = {
+    verifier: createTunnusVerifier({
+      issuer: config.oidc.issuer,
+      audience: config.oidc.audience,
+      jwksUri: config.oidc.jwksUri,
+      jwksCacheFile: config.oidc.jwksCacheFile,
+    }),
+    ...(customGroupMapping.size > 0 ? { customGroupMapping } : {}),
+  };
+}
 
 // Fetch gateway module toggles and filter domain modules accordingly.
 // Domains not gated by any toggle (system, world, tally, etc.) are always on.
@@ -44,6 +69,7 @@ const app = await buildApp({
   upstreams,
   audit: new AuditLog(config.auditPath),
   modules,
+  ...(tunnus ? { tunnus } : {}),
 });
 
 await app.listen({ host: config.host, port: config.port });

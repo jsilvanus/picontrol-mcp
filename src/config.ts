@@ -8,12 +8,21 @@ export interface UpstreamConfig {
   secret?: string;
 }
 
+export interface OidcConfig {
+  issuer: string;
+  audience?: string | undefined;
+  jwksUri?: string | undefined;
+  jwksCacheFile?: string | undefined;
+  groupRights?: string | undefined;
+}
+
 export interface Config {
   host: string;
   port: number;
   publicUrl: string;
   jwtSecret: Uint8Array;
   authMode: AuthMode;
+  oidc?: OidcConfig;
   usersPath: string;
   statePath: string;
   auditPath: string;
@@ -80,8 +89,20 @@ export function loadConfig(env: Env = process.env): Config {
   const pigraphics = upstream(env, 'PIGRAPHICS_URL', 'PIGRAPHICS_API_KEY', 'http://127.0.0.1:3201');
   const pirundownDesigner = upstream(env, 'PIRUNDOWN_DESIGNER_URL', 'PIRUNDOWN_DESIGNER_API_KEY', 'http://127.0.0.1:3610');
 
+  const oidcIssuer = (env.OIDC_ISSUER ?? env.TUNNUS_OIDC_ISSUER)?.trim();
+  const oidc: OidcConfig | undefined = oidcIssuer
+    ? {
+        issuer: oidcIssuer.replace(/\/+$/, ''),
+        audience: (env.OIDC_AUDIENCE ?? env.TUNNUS_OIDC_AUDIENCE)?.trim() || undefined,
+        jwksUri: (env.OIDC_JWKS_URI ?? env.TUNNUS_OIDC_JWKS_URI)?.trim() || undefined,
+        jwksCacheFile: (env.OIDC_JWKS_CACHE_FILE ?? env.TUNNUS_OIDC_JWKS_CACHE_FILE)?.trim() || undefined,
+        groupRights: (env.OIDC_GROUP_RIGHTS ?? env.TUNNUS_OIDC_GROUP_RIGHTS)?.trim() || undefined,
+      }
+    : undefined;
+
   return {
     host, port, publicUrl, jwtSecret, authMode, allowedHosts,
+    ...(oidc ? { oidc } : {}),
     usersPath: env.USERS_PATH ?? join(configHome, 'users.json'),
     statePath: env.STATE_PATH ?? join(stateHome, 'state.sqlite'),
     auditPath: env.AUDIT_PATH ?? join(stateHome, 'audit.log'),

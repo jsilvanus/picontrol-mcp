@@ -1,4 +1,7 @@
 import { jwtVerify } from 'jose';
+import { peekIssuer, type TunnusVerifier, type TunnusClaims } from './tunnus.js';
+
+export { peekIssuer, type TunnusVerifier, type TunnusClaims };
 
 export async function verifyBearerToken(
   token: string,
@@ -13,3 +16,4 @@ export async function verifyBearerToken(
   });
   return payload;
 }
+

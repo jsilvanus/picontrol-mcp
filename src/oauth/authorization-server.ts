@@ -18,6 +18,7 @@ export interface AuthorizationServerOptions {
   fetchClientMetadata?: (clientId: string) => Promise<CimdMetadata>;
   limiter?: LoginLimiter;
   audit?: AuditLog;
+  tunnusIssuer?: string | undefined;
 }
 
 const LOGIN_TICKET_TTL = '10m';
@@ -123,6 +124,13 @@ export async function mountAuthorizationServer(
 
   app.get('/oauth/authorize', async (request, reply) => {
     const q = request.query as Record<string,string|undefined>;
+    if (options.tunnusIssuer) {
+      const tunnusAuth = new URL(options.tunnusIssuer.replace(/\/+$/, '') + '/auth');
+      for (const [k, v] of Object.entries(q)) {
+        if (typeof v === 'string') tunnusAuth.searchParams.set(k, v);
+      }
+      return reply.redirect(tunnusAuth.toString());
+    }
     try {
       await validateRequest(q);
       return sendHtml(reply, loginPage(encodeOAuth(q)));

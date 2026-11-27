@@ -49,6 +49,7 @@ export async function startHarness(options: {
   pirundownDesignerUrl?: string;
   authMode?: AppOptions['authMode'];
   authorization?: AppOptions['authorization'];
+  tunnus?: AppOptions['tunnus'];
 } = {}): Promise<Harness> {
   const dir = mkdtempSync(join(tmpdir(), 'picontrol-mcp-'));
   const users = new UserStore(join(dir, 'users.json'));
@@ -80,6 +81,7 @@ export async function startHarness(options: {
     audit: new AuditLog(auditPath),
     logger: false,
     ...(options.authorization ? { authorization: options.authorization } : {}),
+    ...(options.tunnus ? { tunnus: options.tunnus } : {}),
   });
   await app.listen({ host: '127.0.0.1', port: 0 });
   const address = app.server.address();

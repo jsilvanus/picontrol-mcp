@@ -173,3 +173,195 @@ export function describeRights(rights: EffectiveRights): Record<string, string> 
   };
   return Object.fromEntries(DOMAINS.map(domain => [domain, names[rights[domain]] ?? 'none']));
 }
+
+const MODULE_TO_DOMAIN: Record<string, Domain> = {
+  matrix: 'routing',
+  piswitch: 'routing',
+  routing: 'routing',
+  cameras: 'cameras',
+  picam: 'cameras',
+  atem: 'atem',
+  program: 'program',
+  piprogram: 'program',
+  composites: 'composites',
+  voice: 'voice',
+  pivoice: 'voice',
+  youtube: 'youtube',
+  pitube: 'youtube',
+  tally: 'tally',
+  pitally: 'tally',
+  radio: 'radio',
+  piradio: 'radio',
+  encoder: 'encoder',
+  piencoder: 'encoder',
+  system: 'system',
+  world: 'world',
+  space: 'space',
+  pispace: 'space',
+  perception: 'perception',
+  piperception: 'perception',
+  sound: 'sound',
+  pisound: 'sound',
+  rundown: 'rundown',
+  pirundown: 'rundown',
+  graphics: 'graphics',
+  pigraphics: 'graphics',
+  designer: 'designer',
+  'rundown-designer': 'designer',
+  'pirundown-designer': 'designer',
+};
+
+/**
+ * Maps a single right string like `*:admin`, `cameras:operate`, `picam:read` to permission text(s).
+ */
+export function normalizeRight(right: string): PermissionText[] {
+  const [target, level] = right.split(':');
+  if (!target || !level) return [];
+  const normalizedLevel = level === 'operate' ? 'operate' : level === 'view' ? 'read' : level;
+  if (!(LEVELS as readonly string[]).includes(normalizedLevel as Level)) return [];
+
+  if (target === '*') {
+    return [`*:${normalizedLevel}`];
+  }
+  const domain = MODULE_TO_DOMAIN[target];
+  if (domain) {
+    return [`${domain}:${normalizedLevel}`];
+  }
+  return [];
+}
+
+/**
+ * Resolves a Tunnus group string into internal permission grants / roles.
+ * Supported patterns:
+ * 1. Preset or role directly: `@admin`, `@operator`, `@viewer`, `@content`, `admin`, `operator`, `viewer`, `director`, etc.
+ * 2. `parish/<tenant>/<application>-<role level>` (e.g. `parish/riihimaki/picontrol-operator`, `parish/riihimaki/cameras-write`, `parish/riihimaki/picam-admin`)
+ * 3. `parish/<tenant>/<application>:<level>` (e.g. `parish/riihimaki/picontrol:admin`, `parish/riihimaki/cameras:operate`)
+ * 4. `<module>:<level>` directly (e.g. `cameras:operate`, `*:read`)
+ * 5. Configured custom mapping table if provided.
+ */
+export function grantsForTunnusGroup(
+  group: string,
+  customMapping?: Map<string, string[]> | Record<string, string[]>,
+): PermissionText[] {
+  const trimmed = group.trim();
+  if (!trimmed) return [];
+
+  // Check custom mapping first
+  if (customMapping) {
+    const custom = customMapping instanceof Map ? customMapping.get(trimmed) : customMapping[trimmed];
+    if (custom) {
+      return custom.flatMap(normalizeRight);
+    }
+  }
+
+  // Preset mapping (@admin, @operator, @viewer, @content)
+  const PRESET_EXPANSIONS: Record<string, string[]> = {
+    '@admin': ['*:admin'],
+    '@operator': ['*:write'],
+    '@viewer': ['*:read'],
+    '@content': ['program:write', 'graphics:write', 'rundown:write', 'designer:write'],
+  };
+  if (PRESET_EXPANSIONS[trimmed]) {
+    return PRESET_EXPANSIONS[trimmed]!.flatMap(normalizeRight);
+  }
+
+  // Built-in role directly
+  if (BUILT_IN_ROLES[trimmed]) {
+    return BUILT_IN_ROLES[trimmed]!;
+  }
+
+  // Direct right: `<module>:<level>`
+  if (trimmed.includes(':') && !trimmed.startsWith('parish/')) {
+    return normalizeRight(trimmed);
+  }
+
+  // Parish tenant paths: parish/<tenant>/<app-or-module>[-|:]<level>
+  // e.g. parish/riihimaki/picontrol-operator
+  // e.g. parish/riihimaki/picontrol:admin
+  // e.g. parish/riihimaki/cameras-write
+  // e.g. parish/riihimaki/picam-admin
+  const parishMatch = trimmed.match(/^parish\/[^/]+\/(.+)$/);
+  if (parishMatch) {
+    const tail = parishMatch[1]!;
+
+    // Check if tail is a preset or direct right or app-level
+    if (PRESET_EXPANSIONS[tail]) {
+      return PRESET_EXPANSIONS[tail]!.flatMap(normalizeRight);
+    }
+    if (BUILT_IN_ROLES[tail]) {
+      return BUILT_IN_ROLES[tail]!;
+    }
+
+    // Split on ':' or '-'
+    let app = '';
+    let level = '';
+    if (tail.includes(':')) {
+      const idx = tail.indexOf(':');
+      app = tail.slice(0, idx);
+      level = tail.slice(idx + 1);
+    } else if (tail.includes('-')) {
+      const idx = tail.lastIndexOf('-');
+      app = tail.slice(0, idx);
+      level = tail.slice(idx + 1);
+    }
+
+    if (app && level) {
+      // If the app refers to the entire picontrol application or wildcard:
+      if (app === 'picontrol' || app === 'mcp' || app === 'picontrol-mcp' || app === '*') {
+        if (BUILT_IN_ROLES[level]) {
+          return BUILT_IN_ROLES[level]!;
+        }
+        if (level === 'operator' || level === 'operate') return ['*:write'];
+        if (level === 'viewer' || level === 'view') return ['*:read'];
+        if ((LEVELS as readonly string[]).includes(level as Level)) {
+          return [`*:${level}`];
+        }
+      } else {
+        // App is a domain or module name (e.g. 'cameras', 'picam', 'routing')
+        return normalizeRight(`${app}:${level}`);
+      }
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Computes EffectiveRights from a list of Tunnus groups.
+ */
+export function rightsForTunnusGroups(
+  groups: readonly string[],
+  customMapping?: Map<string, string[]> | Record<string, string[]>,
+): { rights: EffectiveRights; role: string; grants: PermissionText[] } {
+  const allGrants = new Set<PermissionText>();
+
+  for (const group of groups) {
+    const grants = grantsForTunnusGroup(group, customMapping);
+    for (const g of grants) {
+      allGrants.add(g);
+    }
+  }
+
+  const grantsList = [...allGrants];
+  const effective = effectiveRights({
+    role: '',
+    extraGrants: grantsList,
+    extraDenies: [],
+  });
+
+  let highestRole = 'viewer';
+  const domainValues = Object.values(effective);
+  if (domainValues.some(v => v === 3)) {
+    highestRole = 'admin';
+  } else if (domainValues.some(v => v === 2)) {
+    highestRole = 'operator';
+  } else if (domainValues.some(v => v === 1)) {
+    highestRole = 'viewer';
+  }
+
+  return {
+    rights: effective,
+    role: highestRole,
+    grants: grantsList,
+  };
+}

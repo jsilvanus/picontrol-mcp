@@ -1,6 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 
-export async function mountOAuthMetadata(app: FastifyInstance, publicUrl: string): Promise<void> {
+export interface OAuthMetadataOptions {
+  tunnusIssuer?: string | undefined;
+}
+
+export async function mountOAuthMetadata(app: FastifyInstance, publicUrl: string, options: OAuthMetadataOptions = {}): Promise<void> {
   const metadata = {
     issuer: publicUrl,
     authorization_endpoint: publicUrl + '/oauth/authorize',
@@ -14,9 +18,14 @@ export async function mountOAuthMetadata(app: FastifyInstance, publicUrl: string
     authorization_response_iss_parameter_supported: true,
   };
 
+  const authServers = [publicUrl];
+  if (options.tunnusIssuer && !authServers.includes(options.tunnusIssuer)) {
+    authServers.push(options.tunnusIssuer);
+  }
+
   const protectedResource = {
     resource: publicUrl + '/mcp',
-    authorization_servers: [publicUrl],
+    authorization_servers: authServers,
     scopes_supported: ['mcp'],
     bearer_methods_supported: ['header'],
   };

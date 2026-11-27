@@ -11,6 +11,8 @@ import type { AuthStore } from './storage/interface.js';
 import type { Upstreams } from './upstream.js';
 import type { UserStore } from './users/store.js';
 
+import type { TunnusVerifier } from './tunnus.js';
+
 export interface AppOptions {
   publicUrl: string;
   jwtSecret: Uint8Array;
@@ -24,6 +26,10 @@ export interface AppOptions {
   authorization?: AuthorizationServerOptions;
   modules?: DomainModule[];
   logger?: boolean;
+  tunnus?: {
+    verifier: TunnusVerifier;
+    customGroupMapping?: Map<string, string[]>;
+  };
 }
 
 /** Builds the Fastify app without listening, so tests can run it on an ephemeral port. */
@@ -33,10 +39,13 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   const resource = options.publicUrl + '/mcp';
   if (options.authMode !== 'token') {
-    await mountOAuthMetadata(app, options.publicUrl);
+    await mountOAuthMetadata(app, options.publicUrl, {
+      tunnusIssuer: options.tunnus?.verifier.issuer,
+    });
     await mountAuthorizationServer(app, options.publicUrl, resource, options.jwtSecret, options.store, options.users, {
       limiter: new LoginLimiter(),
       audit: options.audit,
+      tunnusIssuer: options.tunnus?.verifier.issuer,
       ...options.authorization,
     });
   }
@@ -50,6 +59,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     audit: options.audit,
     allowedHosts: options.allowedHosts,
     ...(options.modules ? { modules: options.modules } : {}),
+    ...(options.tunnus ? { tunnus: options.tunnus } : {}),
   });
 
   app.get('/health', async () => ({ ok: true }));

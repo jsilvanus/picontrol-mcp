@@ -4,10 +4,11 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { AuditLog } from '../audit.js';
-import { verifyBearerToken } from '../auth.js';
+import { peekIssuer, verifyBearerToken, type TunnusVerifier } from '../auth.js';
 import type { AuthMode } from '../config.js';
 import type { Upstreams } from '../upstream.js';
 import type { Principal, UserStore } from '../users/store.js';
+import { rightsForTunnusGroups } from '../users/permissions.js';
 import { createMcpServer } from './server.js';
 import type { DomainModule } from './registry.js';
 
@@ -22,6 +23,10 @@ export interface McpHttpOptions {
   /** Host header values (with port) that may reach /mcp. Protects against DNS rebinding. */
   allowedHosts: string[];
   modules?: DomainModule[];
+  tunnus?: {
+    verifier: TunnusVerifier;
+    customGroupMapping?: Map<string, string[]>;
+  };
 }
 
 export function wwwAuthenticate(publicUrl: string, mode: AuthMode, error?: string): string {
@@ -62,6 +67,22 @@ export async function mountMcpHttp(app: FastifyInstance, options: McpHttpOptions
     if (token.startsWith('pcm_')) {
       if (options.authMode === 'oauth') return challenge('invalid_token');
       principal = options.users.findByToken(token);
+    } else if (options.tunnus && peekIssuer(token) === options.tunnus.verifier.issuer) {
+      try {
+        const claims = await options.tunnus.verifier.verify(token);
+        const { rights, role } = rightsForTunnusGroups(claims.groups, options.tunnus.customGroupMapping);
+        principal = {
+          id: claims.sub,
+          name: claims.sub,
+          displayName: claims.name ?? claims.email ?? claims.sub,
+          role,
+          rights,
+          scopes: ['*'],
+        };
+        clientId = typeof claims.payload.client_id === 'string' ? claims.payload.client_id : 'tunnus';
+      } catch {
+        principal = undefined;
+      }
     } else if (options.authMode !== 'token') {
       try {
         const payload = await verifyBearerToken(token, options.jwtSecret, options.publicUrl, options.resource);
